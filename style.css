@@ -1,0 +1,30 @@
+.main {
+    display: grid;
+    grid-gap: 50px;
+    grid-template-areas: "draw tiles";
+    grid-template-columns: 25% 75%;
+    height: 100%;
+    width: 100%;
+}
+
+#tiles-div {
+    display: grid;
+    grid-gap: 10px;
+    width: 100vh;
+}
+
+.tile {
+    background-color: gray;
+}
+
+.draw {
+    height: 100%;
+    width: 100%;
+}
+
+#tile-new {
+    height: 30vh;
+    width: 30vh;
+    margin-top: 35vh;
+    margin-left: 25%;
+}
