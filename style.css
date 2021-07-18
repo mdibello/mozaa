@@ -28,3 +28,7 @@
     margin-top: 35vh;
     margin-left: 25%;
 }
+
+.space:hover {
+    background-color: lightgray;
+}
