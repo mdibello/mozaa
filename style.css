@@ -9,8 +9,9 @@
 
 #tiles-div {
     display: grid;
-    grid-gap: 10px;
-    width: 100vh;
+    grid-gap: 5px;
+    width: 95vh;
+    height: 95vh;
 }
 
 .draw {

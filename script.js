@@ -1,6 +1,6 @@
 let numtiles = 1;
-let subgrid_start = { x: 31, y: 31 };
-let subgrid_end = { x: 33, y: 33 };
+let subgrid_start = { x: 30, y: 30 };
+let subgrid_end = { x: 34, y: 34 };
 let colors = ["purple", "dodgerblue", "slategray", "crimson", "lightgray", "white"];
 
 let grid = [];
@@ -47,23 +47,43 @@ let current_tile = tiles.pop();
 
 window.addEventListener('load', render);
 
+window.addEventListener('wheel', function(event) {
+    event.preventDefault();
+    if (event.deltaY < 0) {
+        // Rotate counter-clockwise
+        let temp = current_tile[0];
+        current_tile[0] = current_tile[1];
+        current_tile[1] = current_tile[2];
+        current_tile[2] = current_tile[3];
+        current_tile[3] = temp;
+    } else {
+        // Rotate clockwise
+        let temp = current_tile[3];
+        current_tile[3] = current_tile[2];
+        current_tile[2] = current_tile[1];
+        current_tile[1] = current_tile[0];
+        current_tile[0] = temp;
+    }
+    this.document.getElementById("tile-new").innerHTML = create_svg(current_tile);
+});
+
 function render() {
     let divs = "";
     let gtas = "";
     for (i = subgrid_start.y; i <= subgrid_end.y; i++) {
         let gta = '"';
         for (j = subgrid_start.x; j <= subgrid_end.x; j++) {
-            if (is_valid_square(i, j)) {
-                if (grid[j][i].type == "space") {
-                    divs += `<div class="${grid[j][i].type}" id="${grid[j][i].id}" x="${j}" y="${i}">${create_svg([4, 4, 4, 4])}</div>`;
-                    gta += `${grid[j][i].id} `;
+            if (is_valid_square(j, i)) {
+                if (grid[i][j].type == "space") {
+                    divs += `<div class="${grid[i][j].type}" id="${grid[i][j].id}" x="${j}" y="${i}">${create_svg([4, 4, 4, 4])}</div>`;
+                    gta += `${grid[i][j].id} `;
                 } else {
-                    divs += `<div class="${grid[j][i].type}" id="${grid[j][i].id}" x="${j}" y="${i}">${create_svg(grid[j][i].tile)}</div>`;
-                    gta += `${grid[j][i].id} `;
+                    divs += `<div class="${grid[i][j].type}" id="${grid[i][j].id}" x="${j}" y="${i}">${create_svg(grid[i][j].tile)}</div>`;
+                    gta += `${grid[i][j].id} `;
                 }
             } else {
-                divs += `<div class="blank ${grid[j][i].id}">${create_svg([5, 5, 5, 5])}</div>`;
-                gta += `${grid[j][i].id} `;
+                divs += `<div class="blank ${grid[i][j].id}">${create_svg([5, 5, 5, 5])}</div>`;
+                gta += `${grid[i][j].id} `;
             }
         }
         gta += '" ';
@@ -80,17 +100,20 @@ function render() {
             event.target.style.cursor = "pointer";
         });
         spaces[i].addEventListener('mouseout', function(event) {
-            console.log(event);
-            this.innerHTML = create_svg([4, 4, 4, 4]);
+            // this.innerHTML = create_svg([4, 4, 4, 4]);
             event.target.style.cursor = "default";
         });
         spaces[i].addEventListener('click', function(event) {
             let tile_x = parseInt(this.attributes.x.value);
             let tile_y = parseInt(this.attributes.y.value);
-            place_tile(tile_y, tile_x, current_tile);
-            recalculate_subgrid(tile_x, tile_y);
-            current_tile = tiles.pop();
-            render();
+            if (is_valid_placement(tile_x, tile_y)) {
+                place_tile(tile_x, tile_y, current_tile);
+                recalculate_subgrid(tile_x, tile_y);
+                current_tile = tiles.pop();
+                render();
+            } else {
+                alert("Cannot place this tile here!");
+            }
         });
     }
 }
@@ -101,6 +124,22 @@ function is_valid_square(x, y) {
            grid[y][x-1].type == "tile" ||
            grid[y][x+1].type == "tile" ||
            grid[y][x].type == "tile";
+}
+
+function is_valid_placement(x, y) {
+    if (grid[y-1][x].type == "tile" && grid[y-1][x].tile[3] != current_tile[1]) {
+        return false;
+    }
+    if (grid[y+1][x].type == "tile" && grid[y+1][x].tile[1] != current_tile[3]) {
+        return false;
+    }
+    if (grid[y][x-1].type == "tile" && grid[y][x-1].tile[2] != current_tile[0]) {
+        return false;
+    }
+    if (grid[y][x+1].type == "tile" && grid[y][x+1].tile[0] != current_tile[2]) {
+        return false;
+    }
+    return true;
 }
 
 function place_tile(x, y, tile) {
@@ -128,13 +167,4 @@ function create_svg([left, top, right, bottom]) {
         <polyline points="0 500 500 500 250 250 0 500" stroke="${colors[bottom]}" fill="${colors[bottom]}" stroke-width="1"/>
     </svg>`
     return svg;
-}
-
-function getRandomColor() {
-    var letters = '0123456789ABCDEF';
-    var color = '#';
-    for (var i = 0; i < 6; i++) {
-        color += letters[Math.floor(Math.random() * 16)];
-    }
-    return color;
 }
