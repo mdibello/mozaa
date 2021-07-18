@@ -45,6 +45,8 @@ place_tile(32, 32, [0, 1, 2, 3]);
 
 let current_tile = tiles.pop();
 
+let current_hover = null;
+
 window.addEventListener('load', render);
 
 window.addEventListener('wheel', function(event) {
@@ -64,7 +66,10 @@ window.addEventListener('wheel', function(event) {
         current_tile[1] = current_tile[0];
         current_tile[0] = temp;
     }
-    this.document.getElementById("tile-new").innerHTML = create_svg(current_tile);
+    this.document.getElementById("tile-new").innerHTML = create_svg(current_tile, 1.0);
+    if (current_hover != null) {
+        current_hover.innerHTML = create_svg(current_tile, 0.4);
+    }
 });
 
 function render() {
@@ -75,14 +80,14 @@ function render() {
         for (j = subgrid_start.x; j <= subgrid_end.x; j++) {
             if (is_valid_square(j, i)) {
                 if (grid[i][j].type == "space") {
-                    divs += `<div class="${grid[i][j].type}" id="${grid[i][j].id}" x="${j}" y="${i}">${create_svg([4, 4, 4, 4])}</div>`;
+                    divs += `<div class="${grid[i][j].type}" id="${grid[i][j].id}" x="${j}" y="${i}">${create_svg([4, 4, 4, 4], 1.0)}</div>`;
                     gta += `${grid[i][j].id} `;
                 } else {
-                    divs += `<div class="${grid[i][j].type}" id="${grid[i][j].id}" x="${j}" y="${i}">${create_svg(grid[i][j].tile)}</div>`;
+                    divs += `<div class="${grid[i][j].type}" id="${grid[i][j].id}" x="${j}" y="${i}">${create_svg(grid[i][j].tile, 1.0)}</div>`;
                     gta += `${grid[i][j].id} `;
                 }
             } else {
-                divs += `<div class="blank ${grid[i][j].id}">${create_svg([5, 5, 5, 5])}</div>`;
+                divs += `<div class="blank ${grid[i][j].id}">${create_svg([5, 5, 5, 5], 1.0)}</div>`;
                 gta += `${grid[i][j].id} `;
             }
         }
@@ -91,16 +96,18 @@ function render() {
     }
     this.document.getElementById("tiles-div").style.gridTemplateAreas = gtas;
     this.document.getElementById("tiles-div").innerHTML = divs;
-    this.document.getElementById("tile-new").innerHTML = create_svg(current_tile);
+    this.document.getElementById("tile-new").innerHTML = create_svg(current_tile, 1.0);
 
     let spaces = this.document.getElementsByClassName("space");
     for (let i = 0; i < spaces.length; i++) {
         spaces[i].addEventListener('mouseover', function(event) {
-            // this.innerHTML = create_svg(current_tile);
+            current_hover = this;
+            this.innerHTML = create_svg(current_tile, 0.4);
             event.target.style.cursor = "pointer";
         });
         spaces[i].addEventListener('mouseout', function(event) {
-            // this.innerHTML = create_svg([4, 4, 4, 4]);
+            current_hover = null;
+            this.innerHTML = create_svg([4, 4, 4, 4], 1.0);
             event.target.style.cursor = "default";
         });
         spaces[i].addEventListener('click', function(event) {
@@ -158,13 +165,13 @@ function recalculate_subgrid(x, y) {
     }
 }
 
-function create_svg([left, top, right, bottom]) {
+function create_svg([left, top, right, bottom], opacity) {
     let svg =
-    `<svg viewbox="0 0 500 500" version="1.1" xmlns="http://www.w3.org/2000/svg">
-        <polyline points="0 0 250 250 0 500 0 0" stroke="${colors[left]}" fill="${colors[left]}" stroke-width="1"/>
-        <polyline points="0 0 500 0 250 250 0 0" stroke="${colors[top]}" fill="${colors[top]}" stroke-width="1"/>
-        <polyline points="500 0 500 500 250 250 500 0" stroke="${colors[right]}" fill="${colors[right]}" stroke-width="1"/>
-        <polyline points="0 500 500 500 250 250 0 500" stroke="${colors[bottom]}" fill="${colors[bottom]}" stroke-width="1"/>
+    `<svg viewbox="0 0 500 500" style="pointer-events:none" version="1.1" xmlns="http://www.w3.org/2000/svg">
+        <polyline points="0 0 250 250 0 500 0 0" stroke="${colors[left]}" fill="${colors[left]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
+        <polyline points="0 0 500 0 250 250 0 0" stroke="${colors[top]}" fill="${colors[top]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
+        <polyline points="500 0 500 500 250 250 500 0" stroke="${colors[right]}" fill="${colors[right]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
+        <polyline points="0 500 500 500 250 250 0 500" stroke="${colors[bottom]}" fill="${colors[bottom]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
     </svg>`
     return svg;
 }
