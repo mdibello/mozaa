@@ -1,6 +1,7 @@
 let numtiles = 1;
 let subgrid_start = { x: 31, y: 31 };
 let subgrid_end = { x: 33, y: 33 };
+let colors = ["purple", "dodgerblue", "slategray", "crimson", "lightgray", "white"];
 
 let grid = [];
 for (let y = 0; y < 65; y++) {
@@ -9,18 +10,25 @@ for (let y = 0; y < 65; y++) {
         row[x] = {
             type: "space",
             id: y * 64 + x,
-            tile: -1,
-            color: "gray",
+            tile: [-1, -1, -1, -1],
         }
     }
     grid[y] = row;
 }
 
 let tiles = [];
-for (let i = 0; i < 64; i++) {
-    tiles[i] = {
-        color: getRandomColor(),
-        id: i,
+let n = 0;
+for (let i = 0; i < 4; i++) {
+    for (let j = 0; j < 4; j++) {
+        for (let k = 0; k < 4; k++) {
+            for (let l = 0; l < 4; l++) {
+                let new_tile = [i, j, k, l];
+                if (new_tile != [0, 1, 2, 3]) {
+                    tiles[n] = new_tile;
+                    n++;
+                }
+            }
+        }
     }
 }
 
@@ -33,8 +41,7 @@ while (counter > 0) {
     tiles[index] = temp;
 }
 
-let start_tile = tiles.pop();
-place_tile(32, 32, start_tile);
+place_tile(32, 32, [0, 1, 2, 3]);
 
 let current_tile = tiles.pop();
 
@@ -47,10 +54,15 @@ function render() {
         let gta = '"';
         for (j = subgrid_start.x; j <= subgrid_end.x; j++) {
             if (is_valid_square(i, j)) {
-                divs += `<div class="${grid[j][i].type}" id="${grid[j][i].id}" x="${j}" y="${i}" style="background-color:${grid[j][i].color}"></div>`;
-                gta += `${grid[j][i].id} `;
+                if (grid[j][i].type == "space") {
+                    divs += `<div class="${grid[j][i].type}" id="${grid[j][i].id}" x="${j}" y="${i}">${create_svg([4, 4, 4, 4])}</div>`;
+                    gta += `${grid[j][i].id} `;
+                } else {
+                    divs += `<div class="${grid[j][i].type}" id="${grid[j][i].id}" x="${j}" y="${i}">${create_svg(grid[j][i].tile)}</div>`;
+                    gta += `${grid[j][i].id} `;
+                }
             } else {
-                divs += `<div class="blank ${grid[j][i].id}" style="background-color:white"></div>`;
+                divs += `<div class="blank ${grid[j][i].id}">${create_svg([5, 5, 5, 5])}</div>`;
                 gta += `${grid[j][i].id} `;
             }
         }
@@ -59,16 +71,17 @@ function render() {
     }
     this.document.getElementById("tiles-div").style.gridTemplateAreas = gtas;
     this.document.getElementById("tiles-div").innerHTML = divs;
-    this.document.getElementById("tile-new").style.backgroundColor = current_tile.color;
+    this.document.getElementById("tile-new").innerHTML = create_svg(current_tile);
 
     let spaces = this.document.getElementsByClassName("space");
     for (let i = 0; i < spaces.length; i++) {
         spaces[i].addEventListener('mouseover', function(event) {
-            event.target.style.backgroundColor = "lightgray";
+            // this.innerHTML = create_svg(current_tile);
             event.target.style.cursor = "pointer";
         });
         spaces[i].addEventListener('mouseout', function(event) {
-            event.target.style.backgroundColor = "gray";
+            console.log(event);
+            this.innerHTML = create_svg([4, 4, 4, 4]);
             event.target.style.cursor = "default";
         });
         spaces[i].addEventListener('click', function(event) {
@@ -92,8 +105,7 @@ function is_valid_square(x, y) {
 
 function place_tile(x, y, tile) {
     grid[y][x].type = "tile";
-    grid[y][x].tile = tile.id;
-    grid[y][x].color = tile.color;
+    grid[y][x].tile = tile;
 }
 
 function recalculate_subgrid(x, y) {
@@ -105,6 +117,17 @@ function recalculate_subgrid(x, y) {
         subgrid_end.x += 1;
         subgrid_end.y += 1;
     }
+}
+
+function create_svg([left, top, right, bottom]) {
+    let svg =
+    `<svg viewbox="0 0 500 500" version="1.1" xmlns="http://www.w3.org/2000/svg">
+        <polyline points="0 0 250 250 0 500 0 0" stroke="${colors[left]}" fill="${colors[left]}" stroke-width="1"/>
+        <polyline points="0 0 500 0 250 250 0 0" stroke="${colors[top]}" fill="${colors[top]}" stroke-width="1"/>
+        <polyline points="500 0 500 500 250 250 500 0" stroke="${colors[right]}" fill="${colors[right]}" stroke-width="1"/>
+        <polyline points="0 500 500 500 250 250 0 500" stroke="${colors[bottom]}" fill="${colors[bottom]}" stroke-width="1"/>
+    </svg>`
+    return svg;
 }
 
 function getRandomColor() {

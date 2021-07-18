@@ -13,10 +13,6 @@
     width: 100vh;
 }
 
-.tile {
-    background-color: gray;
-}
-
 .draw {
     height: 100%;
     width: 100%;
@@ -27,8 +23,4 @@
     width: 30vh;
     margin-top: 35vh;
     margin-left: 25%;
-}
-
-.space:hover {
-    background-color: lightgray;
 }
