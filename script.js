@@ -27,7 +27,7 @@ for (let i = 0; i < num_colors; i++) {
         for (let k = 0; k < num_colors; k++) {
             for (let l = 0; l < num_colors; l++) {
                 let new_tile = [i, j, k, l];
-                if (!is_duplicate(starting_tile, new_tile) && !is_duplicate(tiles, new_tile)) {
+                if (!is_duplicate(starting_tile, new_tile) && !is_duplicate(tiles, new_tile) && !is_dichromatic_bowtie(new_tile)) {
                     tiles[n] = new_tile;
                     n++;
                 }
@@ -147,6 +147,10 @@ function is_duplicate(tile_array, tile) {
            contains_tile(tile_array, rotate_tile(tile, 1)) ||
            contains_tile(tile_array, rotate_tile(tile, 2)) ||
            contains_tile(tile_array, rotate_tile(tile, 3));
+}
+
+function is_dichromatic_bowtie(tile) {
+    return tile[0] == tile[2] && tile[1] == tile[3] && tile[0] != tile[1];
 }
 
 function contains_tile(tile_array, tile) {
