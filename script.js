@@ -3,6 +3,8 @@ let subgrid_start = { x: 30, y: 30 };
 let subgrid_end = { x: 34, y: 34 };
 let colors = ["purple", "dodgerblue", "slategray", "crimson", "lightgray", "white"];
 
+let score = 0;
+
 let grid = [];
 for (let y = 0; y < 65; y++) {
     let row = [];
@@ -17,13 +19,15 @@ for (let y = 0; y < 65; y++) {
 }
 
 let tiles = [];
+let starting_tile = [[0, 1, 2, 3], [1, 2, 3, 0], [2, 3, 0, 1], [3, 0, 1, 2]];
 let n = 0;
-for (let i = 0; i < 4; i++) {
-    for (let j = 0; j < 4; j++) {
-        for (let k = 0; k < 4; k++) {
-            for (let l = 0; l < 4; l++) {
+let num_colors = 4;
+for (let i = 0; i < num_colors; i++) {
+    for (let j = 0; j < num_colors; j++) {
+        for (let k = 0; k < num_colors; k++) {
+            for (let l = 0; l < num_colors; l++) {
                 let new_tile = [i, j, k, l];
-                if (new_tile != [0, 1, 2, 3]) {
+                if (!is_duplicate(starting_tile, new_tile) && !is_duplicate(tiles, new_tile)) {
                     tiles[n] = new_tile;
                     n++;
                 }
@@ -41,6 +45,10 @@ while (counter > 0) {
     tiles[index] = temp;
 }
 
+tiles.unshift([4, 4, 4, 4]);
+
+let max_tiles = tiles.length;
+
 place_tile(32, 32, [0, 1, 2, 3]);
 
 let current_tile = tiles.pop();
@@ -53,18 +61,10 @@ window.addEventListener('wheel', function(event) {
     event.preventDefault();
     if (event.deltaY < 0) {
         // Rotate counter-clockwise
-        let temp = current_tile[0];
-        current_tile[0] = current_tile[1];
-        current_tile[1] = current_tile[2];
-        current_tile[2] = current_tile[3];
-        current_tile[3] = temp;
+        current_tile = rotate_tile(current_tile, 1);
     } else {
         // Rotate clockwise
-        let temp = current_tile[3];
-        current_tile[3] = current_tile[2];
-        current_tile[2] = current_tile[1];
-        current_tile[1] = current_tile[0];
-        current_tile[0] = temp;
+        current_tile = rotate_tile(current_tile, 3);
     }
     this.document.getElementById("tile-new").innerHTML = create_svg(current_tile, 1.0);
     if (current_hover != null) {
@@ -97,32 +97,77 @@ function render() {
     this.document.getElementById("tiles-div").style.gridTemplateAreas = gtas;
     this.document.getElementById("tiles-div").innerHTML = divs;
     this.document.getElementById("tile-new").innerHTML = create_svg(current_tile, 1.0);
+    this.document.getElementById("info").innerHTML = create_info_table();
 
-    let spaces = this.document.getElementsByClassName("space");
-    for (let i = 0; i < spaces.length; i++) {
-        spaces[i].addEventListener('mouseover', function(event) {
-            current_hover = this;
-            this.innerHTML = create_svg(current_tile, 0.4);
-            event.target.style.cursor = "pointer";
-        });
-        spaces[i].addEventListener('mouseout', function(event) {
-            current_hover = null;
-            this.innerHTML = create_svg([4, 4, 4, 4], 1.0);
-            event.target.style.cursor = "default";
-        });
-        spaces[i].addEventListener('click', function(event) {
-            let tile_x = parseInt(this.attributes.x.value);
-            let tile_y = parseInt(this.attributes.y.value);
-            if (is_valid_placement(tile_x, tile_y)) {
-                place_tile(tile_x, tile_y, current_tile);
-                recalculate_subgrid(tile_x, tile_y);
-                current_tile = tiles.pop();
-                render();
-            } else {
-                alert("Cannot place this tile here!");
+    if (tiles.length > 0) {
+        let spaces = this.document.getElementsByClassName("space");
+        for (let i = 0; i < spaces.length; i++) {
+            spaces[i].addEventListener('mouseover', function(event) {
+                current_hover = this;
+                this.innerHTML = create_svg(current_tile, 0.5);
+                event.target.style.cursor = "pointer";
+            });
+            spaces[i].addEventListener('mouseout', function(event) {
+                current_hover = null;
+                this.innerHTML = create_svg([4, 4, 4, 4], 1.0);
+                event.target.style.cursor = "default";
+            });
+            spaces[i].addEventListener('click', function(event) {
+                let tile_x = parseInt(this.attributes.x.value);
+                let tile_y = parseInt(this.attributes.y.value);
+                if (is_valid_placement(tile_x, tile_y)) {
+                    place_tile(tile_x, tile_y, current_tile);
+                    recalculate_subgrid(tile_x, tile_y);
+                    current_tile = tiles.pop();
+                    render();
+                } else {
+                    alert("Cannot place this tile here!");
+                }
+            });
+        }
+        this.document.getElementById("tile-new").addEventListener('click', function(event) {
+            current_tile = rotate_tile(current_tile, 3);
+            this.innerHTML = create_svg(current_tile, 1.0);
+            if (current_hover != null) {
+                current_hover.innerHTML = create_svg(current_tile, 0.4);
             }
         });
+        this.document.getElementById("tile-new").addEventListener('mouseover', function(event) {
+            event.target.style.cursor = "pointer";
+        });
+        this.document.getElementById("tile-new").addEventListener('mouseout', function(event) {
+            event.target.style.cursor = "default";
+        });
     }
+}
+
+function is_duplicate(tile_array, tile) {
+    return contains_tile(tile_array, tile) ||
+           contains_tile(tile_array, rotate_tile(tile, 1)) ||
+           contains_tile(tile_array, rotate_tile(tile, 2)) ||
+           contains_tile(tile_array, rotate_tile(tile, 3));
+}
+
+function contains_tile(tile_array, tile) {
+    for (let i = 0; i < tile_array.length; i++) {
+        if (tile_array[i][0] == tile[0] &&
+            tile_array[i][1] == tile[1] &&
+            tile_array[i][2] == tile[2] &&
+            tile_array[i][3] == tile[3]) {
+                return true;
+        }
+    }
+}
+
+function rotate_tile(tile, n) {
+    for (let i = 0; i < n; i++) {
+        let temp =  tile[0];
+        tile[0] =  tile[1];
+        tile[1] =  tile[2];
+        tile[2] =  tile[3];
+        tile[3] = temp;
+    }
+    return tile;
 }
 
 function is_valid_square(x, y) {
@@ -167,11 +212,24 @@ function recalculate_subgrid(x, y) {
 
 function create_svg([left, top, right, bottom], opacity) {
     let svg =
-    `<svg viewbox="0 0 500 500" style="pointer-events:none" version="1.1" xmlns="http://www.w3.org/2000/svg">
-        <polyline points="0 0 250 250 0 500 0 0" stroke="${colors[left]}" fill="${colors[left]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
-        <polyline points="0 0 500 0 250 250 0 0" stroke="${colors[top]}" fill="${colors[top]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
-        <polyline points="500 0 500 500 250 250 500 0" stroke="${colors[right]}" fill="${colors[right]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
-        <polyline points="0 500 500 500 250 250 0 500" stroke="${colors[bottom]}" fill="${colors[bottom]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
-    </svg>`
+        `<svg viewbox="0 0 500 500" style="pointer-events:none" version="1.1" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="0 0 250 250 0 500 0 0" stroke="${colors[left]}" fill="${colors[left]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
+            <polyline points="0 0 500 0 250 250 0 0" stroke="${colors[top]}" fill="${colors[top]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
+            <polyline points="500 0 500 500 250 250 500 0" stroke="${colors[right]}" fill="${colors[right]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
+            <polyline points="0 500 500 500 250 250 0 500" stroke="${colors[bottom]}" fill="${colors[bottom]}" fill-opacity="${opacity}" stroke-width="1" stroke-opacity="${opacity/2}"/>
+        </svg>`
     return svg;
+}
+
+function create_info_table() {
+    let table =
+        `<table>
+            <tr><th>Score:</th><td>${score}</td>
+            <tr><th>Tiles Remaining:</th><td>${tiles.length}</td>
+        </table>
+        <ul>
+            <li>Scroll with your mouse wheel or click the new tile to rotate</li>
+            <li>Earn points for completing shapes of a given color</li>
+        </ul>`;
+    return table;
 }
