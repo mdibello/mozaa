@@ -126,19 +126,23 @@ function render() {
                 }
             });
         }
-        this.document.getElementById("tile-new").addEventListener('click', function(event) {
-            current_tile = rotate_tile(current_tile, 3);
-            this.innerHTML = create_svg(current_tile, 1.0);
-            if (current_hover != null) {
-                current_hover.innerHTML = create_svg(current_tile, 0.4);
-            }
-        });
+        this.document.getElementById("tile-new").removeEventListener('click', rotate_on_click);
+        this.document.getElementById("tile-new").addEventListener('click', rotate_on_click);
         this.document.getElementById("tile-new").addEventListener('mouseover', function(event) {
             event.target.style.cursor = "pointer";
         });
         this.document.getElementById("tile-new").addEventListener('mouseout', function(event) {
             event.target.style.cursor = "default";
         });
+    }
+}
+
+function rotate_on_click() {
+    console.log(current_tile)
+    current_tile = rotate_tile(current_tile, 3);
+    this.innerHTML = create_svg(current_tile, 1.0);
+    if (current_hover != null) {
+        current_hover.innerHTML = create_svg(current_tile, 0.4);
     }
 }
 
