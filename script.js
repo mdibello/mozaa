@@ -36,16 +36,11 @@ for (let i = 0; i < num_colors; i++) {
     }
 }
 
-let counter = tiles.length;
-while (counter > 0) {
-    let index = Math.floor(Math.random() * counter);
-    counter--;
-    let temp = tiles[counter];
-    tiles[counter] = tiles[index];
-    tiles[index] = temp;
-}
+let unique_tileset = tiles;
 
 tiles.unshift([4, 4, 4, 4]);
+
+shuffle_tiles();
 
 let max_tiles = tiles.length;
 
@@ -99,6 +94,21 @@ function render() {
     this.document.getElementById("tile-new").innerHTML = create_svg(current_tile, 1.0);
     this.document.getElementById("info").innerHTML = create_info_table();
 
+    this.document.getElementById("new-tile").addEventListener("click", function(event) {
+        tiles.push(current_tile);
+        shuffle_tiles();
+        current_tile = tiles.pop();
+        render();
+    });
+
+    this.document.getElementById("add-tiles").addEventListener("click", function(event) {
+        let final_tile = tiles.shift();
+        tiles = tiles.concat(unique_tileset);
+        tiles.unshift(final_tile);
+        shuffle_tiles();
+        render();
+    });
+
     if (tiles.length > 0) {
         let spaces = this.document.getElementsByClassName("space");
         for (let i = 0; i < spaces.length; i++) {
@@ -135,6 +145,19 @@ function render() {
             event.target.style.cursor = "default";
         });
     }
+}
+
+function shuffle_tiles() {
+    let final_tile = tiles.shift();
+    let counter = tiles.length;
+    while (counter > 0) {
+        let index = Math.floor(Math.random() * counter);
+        counter--;
+        let temp = tiles[counter];
+        tiles[counter] = tiles[index];
+        tiles[index] = temp;
+    }
+    tiles.unshift(final_tile);
 }
 
 function rotate_on_click() {
@@ -326,13 +349,21 @@ function create_svg([left, top, right, bottom], opacity) {
 
 function create_info_table() {
     let table =
-        `<table>
-            <tr><th>Score:</th><td>${score}</td>
-            <tr><th>Tiles Remaining:</th><td>${tiles.length}</td>
-        </table>
-        <ul>
-            <li>Scroll with your mouse wheel or click the new tile to rotate</li>
-            <li>Earn points for completing shapes of a given color</li>
-        </ul>`;
+        `<div>
+            <table>
+                <tr><th>Score:</th><td>${score}</td>
+                <tr><th>Tiles Remaining:</th><td>${tiles.length}</td>
+            </table>
+            <div class="spacer"></div>
+            <ul>
+                <li>Scroll with your mouse wheel or click the new tile to rotate</li>
+                <li>Earn points for completing shapes of a given color</li>
+            </ul>
+            <div class="spacer"></div>
+            <div style="width:100%;text-align:center">
+                <button id="new-tile">Draw New Tile</button>
+                <button id="add-tiles">Add More Tiles</button>
+            </div>
+        </div>`;
     return table;
 }

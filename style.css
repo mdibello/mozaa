@@ -7,6 +7,10 @@
     width: 100%;
 }
 
+div.spacer {
+    height: 10%;
+}
+
 #tiles-div {
     display: grid;
     grid-gap: 5px;
@@ -46,4 +50,9 @@ ul {
     font-size: large;
     font-style: italic;
     list-style: square;
+}
+
+button {
+    font-size: 200%;
+    padding: 10px;
 }
