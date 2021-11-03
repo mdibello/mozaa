@@ -3,6 +3,7 @@ let subgrid_start = { x: 30, y: 30 };
 let subgrid_end = { x: 34, y: 34 };
 let colors = ["purple", "dodgerblue", "slategray", "crimson", "lightgray", "white"];
 
+let shapes = {}
 let score = 0;
 
 let grid = [];
@@ -45,6 +46,10 @@ shuffle_tiles();
 let max_tiles = tiles.length;
 
 place_tile(32, 32, [0, 1, 2, 3]);
+shapes[gen_key(32, 32, 0)] = gen_edges(1, [grid[32][32].id]);
+shapes[gen_key(32, 32, 1)] = gen_edges(1, [grid[32][32].id]);
+shapes[gen_key(32, 32, 2)] = gen_edges(1, [grid[32][32].id]);
+shapes[gen_key(32, 32, 3)] = gen_edges(1, [grid[32][32].id]);
 
 let current_tile = tiles.pop();
 
@@ -147,6 +152,165 @@ function render() {
     }
 }
 
+function score_tile(x, y) {
+
+    let tile = grid[y][x].tile;
+    let local_shapes = [];
+
+    if (tile[0] == tile[1] && tile[0] == tile[2] && tile[0] == tile[3]) {
+        local_shapes = [[0, 1, 2, 3]];
+    } else if (tile[0] == tile[1] && tile[0] == tile[2]) {
+        local_shapes = [[0, 1, 2], [3]];
+    } else if (tile[0] == tile[1] && tile[0] == tile[3]) {
+        local_shapes = [[0, 1, 3], [2]];
+    } else if (tile[0] == tile[2] && tile[0] == tile[3]) {
+        local_shapes = [[0, 2, 3], [1]];
+    } else if (tile[0] == tile[1]) {
+        if (tile[2] == tile[3]) {
+            local_shapes = [[0, 1], [2, 3]];
+        } else {
+            local_shapes = [[0, 1], [2], [3]];
+        }
+    } else if (tile[0] == tile[3]) {
+        if (tile[1] == tile[2]) {
+            local_shapes = [[0, 3], [1, 2]];
+        } else {
+            local_shapes = [[0, 3], [1], [2]];
+        }
+    } else if (tile[1] == tile[2] && tile[1] == tile[3]) {
+        local_shapes = [[0], [1, 2, 3]];
+    } else if (tile[1] == tile[2]) {
+        local_shapes = [[0], [1, 2], [3]];
+    } else if (tile[2] == tile[3]) {
+        local_shapes = [[0], [2, 3], [1]];
+    } else {
+        local_shapes = [[0], [1], [2], [3]];
+    }
+
+    let local_shape_index_to_shape_key = [];
+    for (i = 0; i < local_shapes.length; i++) {
+        local_shape_index_to_shape_key.push([]);
+    }
+
+    if (grid[y-1][x].type == "tile") {
+        let key = gen_key(x, y-1, 3);
+        let idx = grid[y-1][x].id;
+        if (!shapes[key].tiles.includes(idx)) {
+            local_shapes.forEach(function(value, index, array) {
+                if (value.includes(1)) {
+                    shapes[key].open_edges += value.length;
+                    local_shape_index_to_shape_key[index].push(key);
+                }
+            });
+            shapes[key].open_edges -= 2;
+            shapes[key].tiles.push(idx);
+        } else {
+            shapes[key].open_edges -= 1;
+            score_shape(shapes[key]);
+        }
+    } else {
+        shapes[gen_key(x, y, 3)] = gen_edges(1, [grid[y][x].id]);
+    }
+    if (grid[y+1][x].type == "tile") {
+        let key = gen_key(x, y+1, 1);
+        let idx = grid[y+1][x].id;
+        if (!shapes[key].tiles.includes(idx)) {
+            local_shapes.forEach(function(value, index, array) {
+                if (value.includes(3)) {
+                    shapes[key].open_edges += value.length;
+                    local_shape_index_to_shape_key[index].push(key);
+                }
+            });
+            shapes[key].open_edges -= 2;
+            shapes[key].tiles.push(idx);
+        } else {
+            shapes[key].open_edges -= 1;
+            score_shape(shapes[key]);
+        }
+    } else {
+        shapes[gen_key(x, y, 1)] = gen_edges(1, [grid[y][x].id]);
+    }
+    if (grid[y][x-1].type == "tile") {
+        let key = gen_key(x-1, y, 2);
+        let idx = grid[y][x-1].id;
+        if (!shapes[key].tiles.includes(idx)) {
+            local_shapes.forEach(function(value, index, array) {
+                if (value.includes(0)) {
+                    shapes[key].open_edges += value.length;
+                    local_shape_index_to_shape_key[index].push(key);
+                }
+            });
+            shapes[key].open_edges -= 2;
+            shapes[key].tiles.push(idx);
+        } else {
+            shapes[key].open_edges -= 1;
+            score_shape(shapes[key]);
+        }
+    } else {
+        shapes[gen_key(x, y, 2)] = gen_edges(1, [grid[y][x].id]);
+    }
+    if (grid[y][x+1].type == "tile") {
+        let key = gen_key(x+1, y, 0);
+        let idx = grid[y][x+1].id;
+        if (!shapes[key].tiles.includes(idx)) {
+            local_shapes.forEach(function(value, index, array) {
+                if (value.includes(2)) {
+                    shapes[key].open_edges += value.length;
+                    local_shape_index_to_shape_key[index].push(key);
+                }
+            });
+            shapes[key].open_edges -= 2;
+            shapes[key].tiles.push(idx);
+        } else {
+            shapes[key].open_edges -= 1;
+            score_shape(shapes[key]);
+        }
+    } else {
+        shapes[gen_key(x, y, 0)] = gen_edges(1, [grid[y][x].id]);
+    }
+
+    // Merge shapes
+    local_shape_index_to_shape_key.forEach(function(keys, index, array) {
+        if (keys.length > 1) {
+            let unified_shape = shapes[keys[0]];
+            for (i = 1; i < keys.length; i++) {
+                unified_shape.open_edges += shapes[keys[i]].open_edges;
+                unified_shape.open_edges -= 2;
+                shapes[keys[i]].tiles.forEach(function(id, index, array) {
+                    if (!unified_shape.tiles.includes(id)) {
+                        unified_shape.tiles.push(id);
+                    }
+                });
+            }
+            keys.forEach(function(key, index, array) {
+                shapes[key] = unified_shape;
+            });
+            score_shape(unified_shape);
+        } else if (keys.length == 1) {
+            score_shape(shapes[keys[0]]);
+        }
+    });
+}
+
+function gen_key(x, y, side) {
+    return {'index':grid[y][x].id, 'side':side};
+}
+
+function gen_edges(edges, tiles) {
+    return {'open_edges':edges, 'tiles':tiles};
+}
+
+function score_shape(shape) {
+    console.log(shape);
+    if (shape.open_edges == 0) {
+        if (shape.tiles.length > 3) {
+            score += (shape.tiles.length * 2);
+        } else {
+            score += shape.tiles.length;
+        }
+    }
+}
+
 function shuffle_tiles() {
     let final_tile = tiles.shift();
     let counter = tiles.length;
@@ -229,100 +393,6 @@ function is_valid_placement(x, y) {
 function place_tile(x, y, tile) {
     grid[y][x].type = "tile";
     grid[y][x].tile = tile;
-}
-
-function score_tile(x, y) {
-    let left_color = grid[y][x].tile[0];
-    let top_color = grid[y][x].tile[1];
-    let right_color = grid[y][x].tile[2];
-    let bottom_color = grid[y][x].tile[3];
-    let scores = [{
-        color: left_color,
-        score: score_color(left_color, x-1, y, 2),
-    }, {
-        color: top_color,
-        score: score_color(top_color, x, y-1, 3),
-    }, {
-        color: right_color,
-        score: score_color(right_color, x+1, y, 0),
-    }, {
-        color: bottom_color,
-        score: score_color(bottom_color, x, y+1, 1),
-    }];
-    let i = 0;
-    while (i < scores.length) {
-        if (scores[i].color == scores[(i+1)%scores.length].color) {
-            if (scores[i].score == null || scores[ (i+1)%scores.length].score == null) {
-                scores[i].score = null;
-                scores[(i+1)%scores.length].score = null;
-                i++
-            } else {
-                scores[i].score += scores[ (i+1)%scores.length].score;
-                scores.splice((i+1)%scores.length, 1);
-            }
-        } else {
-            i++;
-        }
-    }
-    let final_score = 0;
-    for (let i = 0; i < scores.length; i++) {
-        if (scores[i].score != null) {
-            if (scores[i].score < 4) {
-                final_score += (scores[i].score + 1);
-            } else {
-                final_score += (scores[i].score + 1) * 2;
-            }
-        }
-    }
-    if (final_score != 0) {
-        score += final_score;
-    }
-}
-
-function score_color(color, x, y, origin) {
-    let tile = grid[y][x];
-    if (tile.type == "space") {
-        return null;
-    }
-    let tally = 1;
-    let next_tiles = [];
-    if (tile[(origin+1)%4] == color) {
-        next_tiles.push((origin+1)%4);
-    }
-    if (tile[(origin+3)%4] == color) {
-        next_tiles.push((origin+3)%4);
-    }
-    if ((tile[(origin+1)%4] == color || tile[(origin+3)%4] == color) && tile[(origin+2)%4] == color) {
-        next_tiles.push((origin+2)%4);
-    }
-    for (let i = 0; i < next_tiles.length; i++) {
-        if (next_tile[i] == 0) {
-            let s = score_color(color, x-1, y, 2);
-            if (s == null) {
-                return null;
-            }
-            tally += s;
-        } else if (next_tile[i] == 1) {
-            let s = score_color(color, x, y-1, 3);
-            if (s == null) {
-                return null;
-            }
-            tally += s;
-        } else if (next_tile[i] == 2) {
-            let s = score_color(color, x+1, y, 0);
-            if (s == null) {
-                return null;
-            }
-            tally += s;
-        } else {
-            let s = score_color(color, x, y+1, 1);
-            if (s == null) {
-                return null;
-            }
-            tally += s;
-        }
-    }
-    return tally;
 }
 
 function recalculate_subgrid(x, y) {
