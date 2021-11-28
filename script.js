@@ -1,3 +1,5 @@
+import { default as init } from './pkg/mozaa.js'
+
 let numtiles = 1;
 let subgrid_start = { x: 30, y: 30 };
 let subgrid_end = { x: 34, y: 34 };
@@ -55,7 +57,7 @@ let current_tile = tiles.pop();
 
 let current_hover = null;
 
-window.addEventListener('load', render);
+window.addEventListener('load', initialize);
 
 window.addEventListener('wheel', function(event) {
     event.preventDefault();
@@ -66,18 +68,23 @@ window.addEventListener('wheel', function(event) {
         // Rotate clockwise
         current_tile = rotate_tile(current_tile, 3);
     }
-    this.document.getElementById("tile-new").innerHTML = create_svg(current_tile, 1.0);
+    document.getElementById("tile-new").innerHTML = create_svg(current_tile, 1.0);
     if (current_hover != null) {
         current_hover.innerHTML = create_svg(current_tile, 0.4);
     }
 });
 
+async function initialize() {
+    await init('./pkg/mozaa_bg.wasm');
+    render();
+}
+
 function render() {
     let divs = "";
     let gtas = "";
-    for (i = subgrid_start.y; i <= subgrid_end.y; i++) {
+    for (var i = subgrid_start.y; i <= subgrid_end.y; i++) {
         let gta = '"';
-        for (j = subgrid_start.x; j <= subgrid_end.x; j++) {
+        for (var j = subgrid_start.x; j <= subgrid_end.x; j++) {
             if (is_valid_square(j, i)) {
                 if (grid[i][j].type == "space") {
                     divs += `<div class="${grid[i][j].type}" id="${grid[i][j].id}" x="${j}" y="${i}">${create_svg([4, 4, 4, 4], 1.0)}</div>`;
@@ -94,19 +101,19 @@ function render() {
         gta += '" ';
         gtas += gta;
     }
-    this.document.getElementById("tiles-div").style.gridTemplateAreas = gtas;
-    this.document.getElementById("tiles-div").innerHTML = divs;
-    this.document.getElementById("tile-new").innerHTML = create_svg(current_tile, 1.0);
-    this.document.getElementById("info").innerHTML = create_info_table();
+    document.getElementById("tiles-div").style.gridTemplateAreas = gtas;
+    document.getElementById("tiles-div").innerHTML = divs;
+    document.getElementById("tile-new").innerHTML = create_svg(current_tile, 1.0);
+    document.getElementById("info").innerHTML = create_info_table();
 
-    this.document.getElementById("new-tile").addEventListener("click", function(event) {
+    document.getElementById("new-tile").addEventListener("click", function(event) {
         tiles.push(current_tile);
         shuffle_tiles();
         current_tile = tiles.pop();
         render();
     });
 
-    this.document.getElementById("add-tiles").addEventListener("click", function(event) {
+    document.getElementById("add-tiles").addEventListener("click", function(event) {
         let final_tile = tiles.shift();
         tiles = tiles.concat(unique_tileset);
         tiles.unshift(final_tile);
@@ -115,7 +122,7 @@ function render() {
     });
 
     if (tiles.length > 0) {
-        let spaces = this.document.getElementsByClassName("space");
+        let spaces = document.getElementsByClassName("space");
         for (let i = 0; i < spaces.length; i++) {
             spaces[i].addEventListener('mouseover', function(event) {
                 current_hover = this;
@@ -141,12 +148,12 @@ function render() {
                 }
             });
         }
-        this.document.getElementById("tile-new").removeEventListener('click', rotate_on_click);
-        this.document.getElementById("tile-new").addEventListener('click', rotate_on_click);
-        this.document.getElementById("tile-new").addEventListener('mouseover', function(event) {
+        document.getElementById("tile-new").removeEventListener('click', rotate_on_click);
+        document.getElementById("tile-new").addEventListener('click', rotate_on_click);
+        document.getElementById("tile-new").addEventListener('mouseover', function(event) {
             event.target.style.cursor = "pointer";
         });
-        this.document.getElementById("tile-new").addEventListener('mouseout', function(event) {
+        document.getElementById("tile-new").addEventListener('mouseout', function(event) {
             event.target.style.cursor = "default";
         });
     }
@@ -190,8 +197,8 @@ function score_tile(x, y) {
         local_shapes = [[0], [1], [2], [3]];
     }
 
-    let local_shape_index_to_shape_key = [];
-    for (i = 0; i < local_shapes.length; i++) {
+    var local_shape_index_to_shape_key = [];
+    for (var i = 0; i < local_shapes.length; i++) {
         local_shape_index_to_shape_key.push([]);
     }
 
@@ -204,7 +211,7 @@ function score_tile(x, y) {
     local_shape_index_to_shape_key.forEach(function(keys, index, array) {
         if (keys.length > 1) {
             let unified_shape = shapes[keys[0]];
-            for (i = 1; i < keys.length; i++) {
+            for (var i = 1; i < keys.length; i++) {
                 unified_shape.open_edges += shapes[keys[i]].open_edges;
                 unified_shape.open_edges -= 2;
                 shapes[keys[i]].tiles.forEach(function(id, index, array) {
