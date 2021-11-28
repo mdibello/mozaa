@@ -154,6 +154,9 @@ function render() {
 
 function score_tile(x, y) {
 
+    console.log('x: ' + x);
+    console.log('y: ' + y);
+
     let tile = grid[y][x].tile;
     let local_shapes = [];
 
@@ -192,82 +195,10 @@ function score_tile(x, y) {
         local_shape_index_to_shape_key.push([]);
     }
 
-    if (grid[y-1][x].type == "tile") {
-        let key = gen_key(x, y-1, 3);
-        let idx = grid[y-1][x].id;
-        if (!shapes[key].tiles.includes(idx)) {
-            local_shapes.forEach(function(value, index, array) {
-                if (value.includes(1)) {
-                    shapes[key].open_edges += value.length;
-                    local_shape_index_to_shape_key[index].push(key);
-                }
-            });
-            shapes[key].open_edges -= 2;
-            shapes[key].tiles.push(idx);
-        } else {
-            shapes[key].open_edges -= 1;
-            score_shape(shapes[key]);
-        }
-    } else {
-        shapes[gen_key(x, y, 3)] = gen_edges(1, [grid[y][x].id]);
-    }
-    if (grid[y+1][x].type == "tile") {
-        let key = gen_key(x, y+1, 1);
-        let idx = grid[y+1][x].id;
-        if (!shapes[key].tiles.includes(idx)) {
-            local_shapes.forEach(function(value, index, array) {
-                if (value.includes(3)) {
-                    shapes[key].open_edges += value.length;
-                    local_shape_index_to_shape_key[index].push(key);
-                }
-            });
-            shapes[key].open_edges -= 2;
-            shapes[key].tiles.push(idx);
-        } else {
-            shapes[key].open_edges -= 1;
-            score_shape(shapes[key]);
-        }
-    } else {
-        shapes[gen_key(x, y, 1)] = gen_edges(1, [grid[y][x].id]);
-    }
-    if (grid[y][x-1].type == "tile") {
-        let key = gen_key(x-1, y, 2);
-        let idx = grid[y][x-1].id;
-        if (!shapes[key].tiles.includes(idx)) {
-            local_shapes.forEach(function(value, index, array) {
-                if (value.includes(0)) {
-                    shapes[key].open_edges += value.length;
-                    local_shape_index_to_shape_key[index].push(key);
-                }
-            });
-            shapes[key].open_edges -= 2;
-            shapes[key].tiles.push(idx);
-        } else {
-            shapes[key].open_edges -= 1;
-            score_shape(shapes[key]);
-        }
-    } else {
-        shapes[gen_key(x, y, 2)] = gen_edges(1, [grid[y][x].id]);
-    }
-    if (grid[y][x+1].type == "tile") {
-        let key = gen_key(x+1, y, 0);
-        let idx = grid[y][x+1].id;
-        if (!shapes[key].tiles.includes(idx)) {
-            local_shapes.forEach(function(value, index, array) {
-                if (value.includes(2)) {
-                    shapes[key].open_edges += value.length;
-                    local_shape_index_to_shape_key[index].push(key);
-                }
-            });
-            shapes[key].open_edges -= 2;
-            shapes[key].tiles.push(idx);
-        } else {
-            shapes[key].open_edges -= 1;
-            score_shape(shapes[key]);
-        }
-    } else {
-        shapes[gen_key(x, y, 0)] = gen_edges(1, [grid[y][x].id]);
-    }
+    local_shape_index_to_shape_key = check_edge(x-1, y, 0, local_shapes, local_shape_index_to_shape_key);
+    local_shape_index_to_shape_key = check_edge(x, y-1, 1, local_shapes, local_shape_index_to_shape_key);
+    local_shape_index_to_shape_key = check_edge(x+1, y, 2, local_shapes, local_shape_index_to_shape_key);
+    local_shape_index_to_shape_key = check_edge(x, y+1, 3, local_shapes, local_shape_index_to_shape_key);
 
     // Merge shapes
     local_shape_index_to_shape_key.forEach(function(keys, index, array) {
@@ -290,6 +221,33 @@ function score_tile(x, y) {
             score_shape(shapes[keys[0]]);
         }
     });
+}
+
+function check_edge(x, y, edge, local_shapes, local_shape_index_to_shape_key) {
+    console.log('x: ' + x);
+    console.log('y: ' + y);
+    console.log('e: ' + edge);
+    console.log('o: ' + (edge+2)%4);
+    if (grid[y][x].type == "tile") {
+        let key = gen_key(x, y, (edge+2)%4);
+        let idx = grid[y][x].id;
+        if (!shapes[key].tiles.includes(idx)) {
+            local_shapes.forEach(function(value, index, array) {
+                if (value.includes(edge)) {
+                    shapes[key].open_edges += value.length;
+                    local_shape_index_to_shape_key[index].push(key);
+                }
+            });
+            shapes[key].open_edges -= 2;
+            shapes[key].tiles.push(idx);
+        } else {
+            shapes[key].open_edges -= 1;
+            score_shape(shapes[key]);
+        }
+    } else {
+        shapes[gen_key(x, y, (edge+2)%4)] = gen_edges(edge, [grid[y][x].id]);
+    }
+    return local_shape_index_to_shape_key;
 }
 
 function gen_key(x, y, side) {
