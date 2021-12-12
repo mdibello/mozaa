@@ -1,51 +1,9 @@
 import { default as init } from './pkg/mozaa.js'
 
-let numtiles = 1;
-let subgrid_start = { x: 30, y: 30 };
-let subgrid_end = { x: 34, y: 34 };
 let colors = ["purple", "dodgerblue", "slategray", "crimson", "lightgray", "white"];
 
-let shapes = {}
+let shapes = {};
 let score = 0;
-
-let grid = [];
-for (let y = 0; y < 65; y++) {
-    let row = [];
-    for (let x = 0; x < 65; x++) {
-        row[x] = {
-            type: "space",
-            id: y * 64 + x,
-            tile: [-1, -1, -1, -1],
-        }
-    }
-    grid[y] = row;
-}
-
-let tiles = [];
-let starting_tile = [[0, 1, 2, 3], [1, 2, 3, 0], [2, 3, 0, 1], [3, 0, 1, 2]];
-let n = 0;
-let num_colors = 4;
-for (let i = 0; i < num_colors; i++) {
-    for (let j = 0; j < num_colors; j++) {
-        for (let k = 0; k < num_colors; k++) {
-            for (let l = 0; l < num_colors; l++) {
-                let new_tile = [i, j, k, l];
-                if (!is_duplicate(starting_tile, new_tile) && !is_duplicate(tiles, new_tile) && !is_dichromatic_bowtie(new_tile)) {
-                    tiles[n] = new_tile;
-                    n++;
-                }
-            }
-        }
-    }
-}
-
-let unique_tileset = tiles;
-
-tiles.unshift([4, 4, 4, 4]);
-
-shuffle_tiles();
-
-let max_tiles = tiles.length;
 
 place_tile(32, 32, [0, 1, 2, 3]);
 shapes[gen_key(32, 32, 0)] = gen_edges(1, [grid[32][32].id]);
@@ -53,8 +11,7 @@ shapes[gen_key(32, 32, 1)] = gen_edges(1, [grid[32][32].id]);
 shapes[gen_key(32, 32, 2)] = gen_edges(1, [grid[32][32].id]);
 shapes[gen_key(32, 32, 3)] = gen_edges(1, [grid[32][32].id]);
 
-let current_tile = tiles.pop();
-
+let current_tile = get_current_tile();
 let current_hover = null;
 
 window.addEventListener('load', initialize);
@@ -82,10 +39,11 @@ async function initialize() {
 function render() {
     let divs = "";
     let gtas = "";
+    let subgrid = get_subgrid();
     for (var i = subgrid_start.y; i <= subgrid_end.y; i++) {
         let gta = '"';
         for (var j = subgrid_start.x; j <= subgrid_end.x; j++) {
-            if (is_valid_square(j, i)) {
+            if (should_be_displayed(coordinate(j, i))) {
                 if (grid[i][j].type == "space") {
                     divs += `<div class="${grid[i][j].type}" id="${grid[i][j].id}" x="${j}" y="${i}">${create_svg([4, 4, 4, 4], 1.0)}</div>`;
                     gta += `${grid[i][j].id} `;
@@ -107,17 +65,13 @@ function render() {
     document.getElementById("info").innerHTML = create_info_table();
 
     document.getElementById("new-tile").addEventListener("click", function(event) {
-        tiles.push(current_tile);
-        shuffle_tiles();
-        current_tile = tiles.pop();
+        select_new_tile();
+        current_tile = get_current_tile();
         render();
     });
 
     document.getElementById("add-tiles").addEventListener("click", function(event) {
-        let final_tile = tiles.shift();
-        tiles = tiles.concat(unique_tileset);
-        tiles.unshift(final_tile);
-        shuffle_tiles();
+        add_more_tiles();
         render();
     });
 
@@ -137,11 +91,15 @@ function render() {
             spaces[i].addEventListener('click', function(event) {
                 let tile_x = parseInt(this.attributes.x.value);
                 let tile_y = parseInt(this.attributes.y.value);
-                if (is_valid_placement(tile_x, tile_y)) {
-                    place_tile(tile_x, tile_y, current_tile);
+                if (is_valid_placement(coordinate(tile_x, tile_y))) {
+                    place_tile(coordinate(tile_x, tile_y), current_tile);
                     score_tile(tile_x, tile_y);
                     recalculate_subgrid(tile_x, tile_y);
-                    current_tile = tiles.pop();
+                    if (tiles_remaining() > 0) {
+                        current_tile = draw_new_tile();
+                    } else {
+                        current_tile = null;
+                    }
                     render();
                 } else {
                     alert("Cannot place this tile here!");
@@ -276,98 +234,12 @@ function score_shape(shape) {
     }
 }
 
-function shuffle_tiles() {
-    let final_tile = tiles.shift();
-    let counter = tiles.length;
-    while (counter > 0) {
-        let index = Math.floor(Math.random() * counter);
-        counter--;
-        let temp = tiles[counter];
-        tiles[counter] = tiles[index];
-        tiles[index] = temp;
-    }
-    tiles.unshift(final_tile);
-}
-
 function rotate_on_click() {
     console.log(current_tile)
     current_tile = rotate_tile(current_tile, 3);
     this.innerHTML = create_svg(current_tile, 1.0);
     if (current_hover != null) {
         current_hover.innerHTML = create_svg(current_tile, 0.4);
-    }
-}
-
-function is_duplicate(tile_array, tile) {
-    return contains_tile(tile_array, tile) ||
-           contains_tile(tile_array, rotate_tile(tile, 1)) ||
-           contains_tile(tile_array, rotate_tile(tile, 2)) ||
-           contains_tile(tile_array, rotate_tile(tile, 3));
-}
-
-function is_dichromatic_bowtie(tile) {
-    return tile[0] == tile[2] && tile[1] == tile[3] && tile[0] != tile[1];
-}
-
-function contains_tile(tile_array, tile) {
-    for (let i = 0; i < tile_array.length; i++) {
-        if (tile_array[i][0] == tile[0] &&
-            tile_array[i][1] == tile[1] &&
-            tile_array[i][2] == tile[2] &&
-            tile_array[i][3] == tile[3]) {
-                return true;
-        }
-    }
-}
-
-function rotate_tile(tile, n) {
-    for (let i = 0; i < n; i++) {
-        let temp =  tile[0];
-        tile[0] =  tile[1];
-        tile[1] =  tile[2];
-        tile[2] =  tile[3];
-        tile[3] = temp;
-    }
-    return tile;
-}
-
-function is_valid_square(x, y) {
-    return grid[y-1][x].type == "tile" ||
-           grid[y+1][x].type == "tile" ||
-           grid[y][x-1].type == "tile" ||
-           grid[y][x+1].type == "tile" ||
-           grid[y][x].type == "tile";
-}
-
-function is_valid_placement(x, y) {
-    if (grid[y-1][x].type == "tile" && grid[y-1][x].tile[3] != current_tile[1]) {
-        return false;
-    }
-    if (grid[y+1][x].type == "tile" && grid[y+1][x].tile[1] != current_tile[3]) {
-        return false;
-    }
-    if (grid[y][x-1].type == "tile" && grid[y][x-1].tile[2] != current_tile[0]) {
-        return false;
-    }
-    if (grid[y][x+1].type == "tile" && grid[y][x+1].tile[0] != current_tile[2]) {
-        return false;
-    }
-    return true;
-}
-
-function place_tile(x, y, tile) {
-    grid[y][x].type = "tile";
-    grid[y][x].tile = tile;
-}
-
-function recalculate_subgrid(x, y) {
-    if (x-1 < subgrid_start.x || y-1 < subgrid_start.y) {
-        subgrid_start.x -= 1;
-        subgrid_start.y -= 1;
-    }
-    if (x+1 > subgrid_end.x || y+1 > subgrid_end.y) {
-        subgrid_end.x += 1;
-        subgrid_end.y += 1;
     }
 }
 

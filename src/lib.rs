@@ -1,14 +1,18 @@
 use wasm_bindgen::prelude::*;
-use matrix::prelude::*;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 
 static mut GRID: Option<Grid> = None;
 static mut TILES: Option<Vec<Tile>> = None;
+static mut CURRENT_TILE: Option<Tile> = None;
+static mut UNIQUE_TILESET: Option<Vec<Tile>> = None;
 
 #[derive(Clone, PartialEq)]
 enum Color { PURPLE, BLUE, GRAY, RED }
 
+#[wasm_bindgen]
 #[derive(Clone)]
-struct Tile {
+pub struct Tile {
     left: Color,
     top: Color,
     right: Color,
@@ -27,11 +31,11 @@ impl Tile {
     fn default() -> Tile {
         return Tile::new(Color::PURPLE, Color::BLUE, Color::GRAY, Color::RED);
     }
-    fn rotate(tile: &Tile, times: u8) -> Tile {
+    fn rotate(&self, times: u8) -> Tile {
         match times {
-            0 => return tile.clone(),
+            0 => return self.clone(),
             n => return Tile::rotate(
-                &Tile::new(tile.bottom.clone(), tile.left.clone(), tile.top.clone(), tile.right.clone()),
+                &Tile::new(self.bottom.clone(), self.left.clone(), self.top.clone(), self.right.clone()),
                 n-1)
         }
     }
@@ -44,10 +48,10 @@ impl Tile {
         return true;
     }
     fn is_duplicate(tile_1: &Tile, tile_2: &Tile) -> bool {
-        return Tile::check_duplicate_rotation(&Tile::rotate(&tile_1, 0), tile_2) &&
-               Tile::check_duplicate_rotation(&Tile::rotate(&tile_1, 1), tile_2) &&
-               Tile::check_duplicate_rotation(&Tile::rotate(&tile_1, 2), tile_2) &&
-               Tile::check_duplicate_rotation(&Tile::rotate(&tile_1, 3), tile_2);
+        return Tile::check_duplicate_rotation(&tile_1.rotate( 0), tile_2) &&
+               Tile::check_duplicate_rotation(&tile_1.rotate( 1), tile_2) &&
+               Tile::check_duplicate_rotation(&tile_1.rotate( 2), tile_2) &&
+               Tile::check_duplicate_rotation(&tile_1.rotate( 3), tile_2);
     }
     fn check_duplicate_rotation(tile_1: &Tile, tile_2: &Tile) -> bool {
         return tile_1.left == tile_2.left &&
@@ -66,21 +70,52 @@ struct Grid {
     subgrid: Subgrid
 }
 
-struct Subgrid {
+impl Grid {
+    fn at(&self, coordinate: &Coordinate) -> Option<Tile> {
+        return self.tiles[xy_to_index(coordinate)].clone();
+    }
+    fn place(&mut self, tile: Tile, coordinate: &Coordinate) -> () {
+        self.tiles[xy_to_index(coordinate)] = Some(tile);
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct Subgrid {
     start: Coordinate,
     end: Coordinate
 }
 
-struct Coordinate {
+#[wasm_bindgen]
+#[derive(Clone)]
+pub struct Coordinate {
     x: usize,
     y: usize
+}
+
+impl Coordinate {
+    fn new(x: usize, y: usize) -> Coordinate {
+        return Coordinate { x: x, y: y };
+    }
+    fn left(&self) -> Coordinate {
+        return Coordinate::new(self.x - 1, self.y);
+    }
+    fn above(&self) -> Coordinate {
+        return Coordinate::new(self.x, self.y - 1);
+    }
+    fn right(&self) -> Coordinate {
+        return Coordinate::new(self.x + 1, self.y);
+    }
+    fn below(&self) -> Coordinate {
+        return Coordinate::new(self.x, self.y + 1);
+    }
 }
 
 #[wasm_bindgen]
 pub fn initialize() -> () {
     unsafe {
         let mut grid: Vec<Option<Tile>> = vec![None; 64 * 64];
-        let starting_index = xy_to_index(Coordinate { x: 32, y: 32 });
+        let starting_index = xy_to_index(&Coordinate { x: 32, y: 32 });
         grid[starting_index] = Some(Tile::default());
 
         GRID = Some(Grid {
@@ -109,7 +144,204 @@ pub fn initialize() -> () {
             }
         }
 
+        UNIQUE_TILESET = Some(tiles.clone());
+        shuffle_tiles(&mut tiles);
+        CURRENT_TILE = Some(tiles.pop().unwrap());
         TILES = Some(tiles);
+    }
+}
+
+#[wasm_bindgen]
+pub fn is_valid_placement(new_tile: &Tile, coordinate: &Coordinate) -> bool {
+    unsafe {
+        match &GRID {
+            None => panic!("GRID uninitialized!"),
+            Some(grid) => {
+                match grid.at(&coordinate) {
+                    None => (),
+                    Some(_) => {
+                        return false;
+                    }
+                }
+                match grid.at(&coordinate.left()) {
+                    None => (),
+                    Some(tile_to_left) => {
+                        if tile_to_left.right != new_tile.left {
+                            return false;
+                        }
+                    }
+                }
+                match grid.at(&coordinate.above()) {
+                    None => (),
+                    Some(tile_above) => {
+                        if tile_above.bottom != new_tile.top {
+                            return false;
+                        }
+                    }
+                }
+                match grid.at(&coordinate.right()) {
+                    None => (),
+                    Some(tile_to_right) => {
+                        if tile_to_right.left != new_tile.right {
+                            return false;
+                        }
+                    }
+                }
+                match grid.at(&coordinate.below()) {
+                    None => (),
+                    Some(tile_below) => {
+                        if tile_below.top != new_tile.bottom {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return true;
+}
+
+#[wasm_bindgen]
+pub fn place_tile(coordinate: &Coordinate, tile: &Tile) -> () {
+    if is_valid_placement(tile, coordinate) {
+        unsafe {
+            match &mut GRID {
+                None => panic!("GRID uninitialized!"),
+                Some(grid) => {
+                    grid.place(tile.clone(), coordinate);
+                }
+            }
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn should_be_displayed(coordinate: &Coordinate) -> bool {
+    unsafe {
+        match &GRID {
+            None => panic!("GRID uninitialized!"),
+            Some(grid) => {
+                return grid.at(&coordinate).is_some() ||
+                       grid.at(&coordinate.left()).is_some() ||
+                       grid.at(&coordinate.above()).is_some() ||
+                       grid.at(&coordinate.right()).is_some() ||
+                       grid.at(&coordinate.below()).is_some();
+            }
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn get_current_tile() -> Tile {
+    unsafe {
+        match &CURRENT_TILE {
+            None => panic!("CURRENT_TILE uninitialized!"),
+            Some(tile) => return tile.clone(),
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn draw_new_tile() -> Tile {
+    unsafe {
+        match &mut TILES {
+            None => panic!("TILES uninitialized!"),
+            Some(tiles) => {
+                match &mut CURRENT_TILE {
+                    None => panic!("CURRENT_TILE uninitialized!"),
+                    Some(current_tile) => {
+                        if tiles.len() > 0 {
+                            *current_tile = tiles.pop().unwrap();
+                            return current_tile.clone();
+                        }
+                        panic!("Tried to draw new tile when there are none remaining. Need to check first");
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn recalculate_subgrid(coordinate: Coordinate) -> () {
+    unsafe {
+        match &mut GRID {
+            None => panic!("GRID uninitialized!"),
+            Some(grid) => {
+                if coordinate.x - 1 < grid.subgrid.start.x || coordinate.y - 1 < grid.subgrid.start.y {
+                    grid.subgrid.start.x -= 1;
+                    grid.subgrid.start.y -= 1;
+                }
+                if coordinate.x + 1 > grid.subgrid.end.x || coordinate.y + 1 > grid.subgrid.end.y {
+                    grid.subgrid.end.x += 1;
+                    grid.subgrid.end.y += 1;
+                }
+            }
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn get_subgrid() -> Subgrid {
+    unsafe {
+        match &GRID {
+            None => panic!("GRID uninitialized!"),
+            Some(grid) => {
+                return grid.subgrid.clone();
+            }
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn tiles_remaining() -> usize {
+    unsafe {
+        match &TILES {
+            None => panic!("TILES uninitialized!"),
+            Some(tiles) => return tiles.len()
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn coordinate(x: usize, y: usize) -> Coordinate {
+    return Coordinate::new(x, y);
+}
+
+#[wasm_bindgen]
+pub fn select_new_tile() -> () {
+    unsafe {
+        match &mut TILES {
+            None => panic!("TILES uninitialized!"),
+            Some(tiles) => {
+                match &mut CURRENT_TILE {
+                    None => panic!("CURRENT_TILE uninitialized!"),
+                    Some(current_tile) => {
+                        tiles.push(current_tile.clone());
+                        shuffle_tiles(tiles);
+                        *current_tile = tiles.pop().unwrap();
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn add_more_tiles() -> () {
+    unsafe {
+        match &mut TILES {
+            None => panic!("TILES uninitialized!"),
+            Some(tiles) => {
+                match &UNIQUE_TILESET {
+                    None => panic!("UNIQUE_TILESET uninitialized!"),
+                    Some(unique_tileset) => {
+                        tiles.append(&mut unique_tileset.clone());
+                        shuffle_tiles(tiles);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -118,7 +350,12 @@ pub fn score() -> i32 {
     return 3;
 }
 
-fn xy_to_index(c: Coordinate) -> usize {
+fn shuffle_tiles(tiles: &mut Vec<Tile>) -> () {
+    let mut rng = thread_rng();
+    tiles.shuffle(&mut rng);
+}
+
+fn xy_to_index(c: &Coordinate) -> usize {
     unsafe {
         match &GRID {
             None => panic!("GRID is uninitialized!"),
