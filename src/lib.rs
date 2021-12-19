@@ -139,26 +139,21 @@ pub fn initialize() -> () {
             for c2 in &colors {
                 for c3 in &colors {
                     for c4 in &colors {
-                        println!("{:?} {:?} {:?} {:?}", c1, c2, c3, c4);
                         let new_tile = Tile::new(c1.clone(), c2.clone(), c3.clone(), c4.clone());
-                        let d1 = Tile::is_duplicate(&new_tile, &Tile::default());
-                        let d2 = Tile::is_duplicate_many(&new_tile, &tiles);
-                        let d3 = Tile::is_dichromatic_bowtie(&new_tile);
-                        println!("{} {} {}\n", d1, d2, d3);
-                        if !d1 && !d2 && !d3 {
+                        if !Tile::is_duplicate(&new_tile, &Tile::default()) &&
+                           !Tile::is_duplicate_many(&new_tile, &tiles) &&
+                           !Tile::is_dichromatic_bowtie(&new_tile) {
                                 tiles.push(new_tile);
-                        }
+                           }
                     }
                 }
             }
         }
 
-        println!("{:?}", tiles);
-
         UNIQUE_TILESET = Some(tiles.clone());
         shuffle_tiles(&mut tiles);
         CURRENT_TILE = Some(tiles.pop().unwrap());
-        TILES = Some(tiles);
+        TILES = Some(vec![Tile::default()]);
     }
 }
 
@@ -288,19 +283,19 @@ pub fn get_current_tile() -> Tile {
 }
 
 #[wasm_bindgen]
-pub fn draw_new_tile() -> Tile {
+pub fn draw_new_tile() -> () {
     unsafe {
         match &mut TILES {
             None => panic!("TILES uninitialized!"),
             Some(tiles) => {
                 match &mut CURRENT_TILE {
-                    None => panic!("CURRENT_TILE uninitialized!"),
+                    None => (),
                     Some(current_tile) => {
                         if tiles.len() > 0 {
                             *current_tile = tiles.pop().unwrap();
-                            return current_tile.clone();
+                        } else {
+                            panic!("Tried to draw new tile when there are none remaining. Need to check first");
                         }
-                        panic!("Tried to draw new tile when there are none remaining. Need to check first");
                     }
                 }
             }
@@ -384,6 +379,12 @@ pub fn add_more_tiles() -> () {
                     Some(unique_tileset) => {
                         tiles.append(&mut unique_tileset.clone());
                         shuffle_tiles(tiles);
+                        match &CURRENT_TILE {
+                            Some(_) => (),
+                            None => {
+                                draw_new_tile();
+                            }
+                        }
                     }
                 }
             }
