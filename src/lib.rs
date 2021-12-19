@@ -83,14 +83,16 @@ impl Grid {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Subgrid {
     pub start: Coordinate,
-    pub end: Coordinate
+    pub end: Coordinate,
+    max_dimensions: Coordinate,
+    min_dimensions: Coordinate
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Coordinate {
     pub x: usize,
     pub y: usize
@@ -127,7 +129,9 @@ pub fn initialize() -> () {
             width: 64,
             subgrid: Subgrid {
                 start: Coordinate { x: 30, y: 30 },
-                end: Coordinate { x: 34, y: 34 }
+                end: Coordinate { x: 34, y: 34 },
+                max_dimensions: Coordinate { x: 32, y: 32 },
+                min_dimensions: Coordinate { x: 32, y: 32 }
             }
         });
         
@@ -153,7 +157,7 @@ pub fn initialize() -> () {
         UNIQUE_TILESET = Some(tiles.clone());
         shuffle_tiles(&mut tiles);
         CURRENT_TILE = Some(tiles.pop().unwrap());
-        TILES = Some(vec![Tile::default()]);
+        TILES = Some(tiles);
     }
 }
 
@@ -309,13 +313,37 @@ pub fn recalculate_subgrid(coordinate: Coordinate) -> () {
         match &mut GRID {
             None => panic!("GRID uninitialized!"),
             Some(grid) => {
+                grid.subgrid.min_dimensions = Coordinate::new(
+                    std::cmp::min(grid.subgrid.min_dimensions.x, coordinate.x),
+                    std::cmp::min(grid.subgrid.min_dimensions.y, coordinate.y)
+                );
+                grid.subgrid.max_dimensions = Coordinate::new(
+                    std::cmp::max(grid.subgrid.max_dimensions.x, coordinate.x),
+                    std::cmp::max(grid.subgrid.max_dimensions.y, coordinate.y)
+                );
                 if coordinate.x - 1 < grid.subgrid.start.x || coordinate.y - 1 < grid.subgrid.start.y {
-                    grid.subgrid.start.x -= 1;
-                    grid.subgrid.start.y -= 1;
+                    if coordinate.x - 1 < grid.subgrid.start.x && grid.subgrid.end.x > grid.subgrid.max_dimensions.x + 1  {
+                        grid.subgrid.start.x -= 1;
+                        grid.subgrid.end.x -= 1;
+                    } else if coordinate.y - 1 < grid.subgrid.start.y && grid.subgrid.end.y > grid.subgrid.max_dimensions.y + 1 {
+                        grid.subgrid.start.y -= 1;
+                        grid.subgrid.end.y -= 1;
+                    } else {
+                        grid.subgrid.start.x -= 1;
+                        grid.subgrid.start.y -= 1;
+                    }
                 }
                 if coordinate.x + 1 > grid.subgrid.end.x || coordinate.y + 1 > grid.subgrid.end.y {
-                    grid.subgrid.end.x += 1;
-                    grid.subgrid.end.y += 1;
+                    if coordinate.x + 1 > grid.subgrid.end.x && grid.subgrid.start.x < grid.subgrid.min_dimensions.x - 1 {
+                        grid.subgrid.start.x += 1;
+                        grid.subgrid.end.x += 1;
+                    } else if coordinate.y + 1 > grid.subgrid.end.y && grid.subgrid.start.y < grid.subgrid.min_dimensions.y - 1  {
+                        grid.subgrid.start.y += 1;
+                        grid.subgrid.end.y += 1;
+                    } else {
+                        grid.subgrid.end.x += 1;
+                        grid.subgrid.end.y += 1;
+                    }
                 }
             }
         }
