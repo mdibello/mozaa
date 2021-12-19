@@ -1,20 +1,35 @@
-import { default as init } from './pkg/mozaa.js'
+import {
+    initialize,
+    is_valid_placement,
+    get_tile,
+    place_tile,
+    rotate_tile,
+    should_be_displayed,
+    contains_tile,
+    get_current_tile,
+    draw_new_tile,
+    recalculate_subgrid,
+    get_subgrid,
+    tiles_remaining,
+    coordinate,
+    select_new_tile,
+    add_more_tiles,
+    score,
+    default as init
+} from './pkg/mozaa.js';
+
+async function initialize_game() {
+    await init('./pkg/mozaa_bg.wasm');
+    initialize();
+    render();
+}
+
+window.addEventListener('load', initialize_game);
 
 let colors = ["purple", "dodgerblue", "slategray", "crimson", "lightgray", "white"];
 
-let shapes = {};
-let score = 0;
-
-place_tile(32, 32, [0, 1, 2, 3]);
-shapes[gen_key(32, 32, 0)] = gen_edges(1, [grid[32][32].id]);
-shapes[gen_key(32, 32, 1)] = gen_edges(1, [grid[32][32].id]);
-shapes[gen_key(32, 32, 2)] = gen_edges(1, [grid[32][32].id]);
-shapes[gen_key(32, 32, 3)] = gen_edges(1, [grid[32][32].id]);
-
-let current_tile = get_current_tile();
+let current_tile = null;
 let current_hover = null;
-
-window.addEventListener('load', initialize);
 
 window.addEventListener('wheel', function(event) {
     event.preventDefault();
@@ -25,35 +40,32 @@ window.addEventListener('wheel', function(event) {
         // Rotate clockwise
         current_tile = rotate_tile(current_tile, 3);
     }
-    document.getElementById("tile-new").innerHTML = create_svg(current_tile, 1.0);
+    document.getElementById("tile-new").innerHTML = create_svg(tile_to_colors(current_tile), 1.0);
     if (current_hover != null) {
-        current_hover.innerHTML = create_svg(current_tile, 0.4);
+        current_hover.innerHTML = create_svg(tile_to_colors(current_tile), 0.4);
     }
 });
-
-async function initialize() {
-    await init('./pkg/mozaa_bg.wasm');
-    render();
-}
 
 function render() {
     let divs = "";
     let gtas = "";
     let subgrid = get_subgrid();
-    for (var i = subgrid_start.y; i <= subgrid_end.y; i++) {
+    current_tile = get_current_tile();
+    for (var i = subgrid.start.y; i <= subgrid.end.y; i++) {
         let gta = '"';
-        for (var j = subgrid_start.x; j <= subgrid_end.x; j++) {
+        for (var j = subgrid.start.x; j <= subgrid.end.x; j++) {
             if (should_be_displayed(coordinate(j, i))) {
-                if (grid[i][j].type == "space") {
-                    divs += `<div class="${grid[i][j].type}" id="${grid[i][j].id}" x="${j}" y="${i}">${create_svg([4, 4, 4, 4], 1.0)}</div>`;
-                    gta += `${grid[i][j].id} `;
+                if (!contains_tile(coordinate(j, i))) {
+                    divs += `<div class="space" id="${generate_id(j, i)}" x="${j}" y="${i}">${create_svg([4, 4, 4, 4], 1.0)}</div>`;
+                    gta += `${generate_id(j, i)} `;
                 } else {
-                    divs += `<div class="${grid[i][j].type}" id="${grid[i][j].id}" x="${j}" y="${i}">${create_svg(grid[i][j].tile, 1.0)}</div>`;
-                    gta += `${grid[i][j].id} `;
+                    let tile_colors = tile_to_colors(get_tile(coordinate(j, i)));
+                    divs += `<div class="tile" id="${generate_id(j, i)}" x="${j}" y="${i}">${create_svg(tile_colors, 1.0)}</div>`;
+                    gta += `${generate_id(j, i)} `;
                 }
             } else {
-                divs += `<div class="blank ${grid[i][j].id}">${create_svg([5, 5, 5, 5], 1.0)}</div>`;
-                gta += `${grid[i][j].id} `;
+                divs += `<div class="blank ${generate_id(j, i)}">${create_svg([5, 5, 5, 5], 1.0)}</div>`;
+                gta += `${generate_id(j, i)} `;
             }
         }
         gta += '" ';
@@ -61,7 +73,7 @@ function render() {
     }
     document.getElementById("tiles-div").style.gridTemplateAreas = gtas;
     document.getElementById("tiles-div").innerHTML = divs;
-    document.getElementById("tile-new").innerHTML = create_svg(current_tile, 1.0);
+    document.getElementById("tile-new").innerHTML = create_svg(tile_to_colors(current_tile), 1.0);
     document.getElementById("info").innerHTML = create_info_table();
 
     document.getElementById("new-tile").addEventListener("click", function(event) {
@@ -75,12 +87,12 @@ function render() {
         render();
     });
 
-    if (tiles.length > 0) {
+    if (tiles_remaining() > 0) {
         let spaces = document.getElementsByClassName("space");
         for (let i = 0; i < spaces.length; i++) {
             spaces[i].addEventListener('mouseover', function(event) {
                 current_hover = this;
-                this.innerHTML = create_svg(current_tile, 0.5);
+                this.innerHTML = create_svg(tile_to_colors(current_tile), 0.5);
                 event.target.style.cursor = "pointer";
             });
             spaces[i].addEventListener('mouseout', function(event) {
@@ -91,10 +103,9 @@ function render() {
             spaces[i].addEventListener('click', function(event) {
                 let tile_x = parseInt(this.attributes.x.value);
                 let tile_y = parseInt(this.attributes.y.value);
-                if (is_valid_placement(coordinate(tile_x, tile_y))) {
+                if (is_valid_placement(current_tile, coordinate(tile_x, tile_y))) {
                     place_tile(coordinate(tile_x, tile_y), current_tile);
-                    score_tile(tile_x, tile_y);
-                    recalculate_subgrid(tile_x, tile_y);
+                    recalculate_subgrid(coordinate(tile_x, tile_y));
                     if (tiles_remaining() > 0) {
                         current_tile = draw_new_tile();
                     } else {
@@ -117,129 +128,12 @@ function render() {
     }
 }
 
-function score_tile(x, y) {
-
-    console.log('x: ' + x);
-    console.log('y: ' + y);
-
-    let tile = grid[y][x].tile;
-    let local_shapes = [];
-
-    if (tile[0] == tile[1] && tile[0] == tile[2] && tile[0] == tile[3]) {
-        local_shapes = [[0, 1, 2, 3]];
-    } else if (tile[0] == tile[1] && tile[0] == tile[2]) {
-        local_shapes = [[0, 1, 2], [3]];
-    } else if (tile[0] == tile[1] && tile[0] == tile[3]) {
-        local_shapes = [[0, 1, 3], [2]];
-    } else if (tile[0] == tile[2] && tile[0] == tile[3]) {
-        local_shapes = [[0, 2, 3], [1]];
-    } else if (tile[0] == tile[1]) {
-        if (tile[2] == tile[3]) {
-            local_shapes = [[0, 1], [2, 3]];
-        } else {
-            local_shapes = [[0, 1], [2], [3]];
-        }
-    } else if (tile[0] == tile[3]) {
-        if (tile[1] == tile[2]) {
-            local_shapes = [[0, 3], [1, 2]];
-        } else {
-            local_shapes = [[0, 3], [1], [2]];
-        }
-    } else if (tile[1] == tile[2] && tile[1] == tile[3]) {
-        local_shapes = [[0], [1, 2, 3]];
-    } else if (tile[1] == tile[2]) {
-        local_shapes = [[0], [1, 2], [3]];
-    } else if (tile[2] == tile[3]) {
-        local_shapes = [[0], [2, 3], [1]];
-    } else {
-        local_shapes = [[0], [1], [2], [3]];
-    }
-
-    var local_shape_index_to_shape_key = [];
-    for (var i = 0; i < local_shapes.length; i++) {
-        local_shape_index_to_shape_key.push([]);
-    }
-
-    local_shape_index_to_shape_key = check_edge(x-1, y, 0, local_shapes, local_shape_index_to_shape_key);
-    local_shape_index_to_shape_key = check_edge(x, y-1, 1, local_shapes, local_shape_index_to_shape_key);
-    local_shape_index_to_shape_key = check_edge(x+1, y, 2, local_shapes, local_shape_index_to_shape_key);
-    local_shape_index_to_shape_key = check_edge(x, y+1, 3, local_shapes, local_shape_index_to_shape_key);
-
-    // Merge shapes
-    local_shape_index_to_shape_key.forEach(function(keys, index, array) {
-        if (keys.length > 1) {
-            let unified_shape = shapes[keys[0]];
-            for (var i = 1; i < keys.length; i++) {
-                unified_shape.open_edges += shapes[keys[i]].open_edges;
-                unified_shape.open_edges -= 2;
-                shapes[keys[i]].tiles.forEach(function(id, index, array) {
-                    if (!unified_shape.tiles.includes(id)) {
-                        unified_shape.tiles.push(id);
-                    }
-                });
-            }
-            keys.forEach(function(key, index, array) {
-                shapes[key] = unified_shape;
-            });
-            score_shape(unified_shape);
-        } else if (keys.length == 1) {
-            score_shape(shapes[keys[0]]);
-        }
-    });
-}
-
-function check_edge(x, y, edge, local_shapes, local_shape_index_to_shape_key) {
-    console.log('x: ' + x);
-    console.log('y: ' + y);
-    console.log('e: ' + edge);
-    console.log('o: ' + (edge+2)%4);
-    if (grid[y][x].type == "tile") {
-        let key = gen_key(x, y, (edge+2)%4);
-        let idx = grid[y][x].id;
-        if (!shapes[key].tiles.includes(idx)) {
-            local_shapes.forEach(function(value, index, array) {
-                if (value.includes(edge)) {
-                    shapes[key].open_edges += value.length;
-                    local_shape_index_to_shape_key[index].push(key);
-                }
-            });
-            shapes[key].open_edges -= 2;
-            shapes[key].tiles.push(idx);
-        } else {
-            shapes[key].open_edges -= 1;
-            score_shape(shapes[key]);
-        }
-    } else {
-        shapes[gen_key(x, y, (edge+2)%4)] = gen_edges(edge, [grid[y][x].id]);
-    }
-    return local_shape_index_to_shape_key;
-}
-
-function gen_key(x, y, side) {
-    return {'index':grid[y][x].id, 'side':side};
-}
-
-function gen_edges(edges, tiles) {
-    return {'open_edges':edges, 'tiles':tiles};
-}
-
-function score_shape(shape) {
-    console.log(shape);
-    if (shape.open_edges == 0) {
-        if (shape.tiles.length > 3) {
-            score += (shape.tiles.length * 2);
-        } else {
-            score += shape.tiles.length;
-        }
-    }
-}
-
 function rotate_on_click() {
     console.log(current_tile)
     current_tile = rotate_tile(current_tile, 3);
-    this.innerHTML = create_svg(current_tile, 1.0);
+    this.innerHTML = create_svg(tile_to_colors(current_tile), 1.0);
     if (current_hover != null) {
-        current_hover.innerHTML = create_svg(current_tile, 0.4);
+        current_hover.innerHTML = create_svg(tile_to_colors(current_tile), 0.4);
     }
 }
 
@@ -258,8 +152,8 @@ function create_info_table() {
     let table =
         `<div>
             <table>
-                <tr><th>Score:</th><td>${score}</td>
-                <tr><th>Tiles Remaining:</th><td>${tiles.length}</td>
+                <tr><th>Score:</th><td>${score()}</td>
+                <tr><th>Tiles Remaining:</th><td>${tiles_remaining()}</td>
             </table>
             <div class="spacer"></div>
             <ul>
@@ -273,4 +167,12 @@ function create_info_table() {
             </div>
         </div>`;
     return table;
+}
+
+function generate_id(x, y) {
+    return (y * 64) + x;
+}
+
+function tile_to_colors(tile) {
+    return [tile.left, tile.top, tile.right, tile.bottom];
 }
