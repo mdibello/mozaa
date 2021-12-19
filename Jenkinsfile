@@ -9,7 +9,7 @@ pipeline {
         }
         stage('Generate JS') {
             steps {
-                sh 'wasm-bindgen --target web .\target\wasm32-unknown-unknown\release\mozaa.wasm --out-dir ./pkg'
+                sh 'wasm-bindgen --target web ./target/wasm32-unknown-unknown/release/mozaa.wasm --out-dir ./pkg'
             }
         }
         stage('Deploy') {
