@@ -19,7 +19,7 @@ pipeline {
             steps {
                 dir('.') {
                     sshagent (credentials: ['jenkins-ssh-nfs-matt']) {
-                        sh 'rsync -avrz -e "ssh -l mdibello_splendorveritatis -o StrictHostKeyChecking=no" index.html favicon.svg script.js style.css pkg/ ssh.phx.nearlyfreespeech.net:/home/public/mozaa'
+                        sh 'rsync -avrz -e "ssh -l mdibello_splendorveritatis -o StrictHostKeyChecking=no" index.html favicon.svg script.js style.css ssh.phx.nearlyfreespeech.net:/home/public/mozaa'
                         sh 'rsync -avrz -e "ssh -l mdibello_splendorveritatis -o StrictHostKeyChecking=no" pkg/ ssh.phx.nearlyfreespeech.net:/home/public/mozaa/pkg'
                     }
                 }
