@@ -69,16 +69,16 @@ impl Tile {
 
 struct Grid {
     tiles: Vec<Option<Tile>>,
-    width: usize,
+    width: i32,
     subgrid: Subgrid
 }
 
 impl Grid {
     fn at(&self, coordinate: &Coordinate) -> Option<Tile> {
-        return self.tiles[xy_to_index(coordinate)].clone();
+        return self.tiles[xy_to_index(coordinate) as usize].clone();
     }
     fn place(&mut self, tile: Tile, coordinate: &Coordinate) -> () {
-        self.tiles[xy_to_index(coordinate)] = Some(tile);
+        self.tiles[xy_to_index(coordinate) as usize] = Some(tile);
     }
 }
 
@@ -94,12 +94,12 @@ pub struct Subgrid {
 #[wasm_bindgen]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Coordinate {
-    pub x: usize,
-    pub y: usize
+    pub x: i32,
+    pub y: i32
 }
 
 impl Coordinate {
-    fn new(x: usize, y: usize) -> Coordinate {
+    fn new(x: i32, y: i32) -> Coordinate {
         return Coordinate { x: x, y: y };
     }
     fn left(&self) -> Coordinate {
@@ -113,6 +113,9 @@ impl Coordinate {
     }
     fn below(&self) -> Coordinate {
         return Coordinate::new(self.x, self.y + 1);
+    }
+    fn is_out_of_bounds(&self) -> bool {
+        return self.x < 0 || self.x > 63 || self.y < 0 || self.y > 63;
     }
 }
 
@@ -163,6 +166,9 @@ pub fn initialize() -> () {
 
 #[wasm_bindgen]
 pub fn is_valid_placement(new_tile: &Tile, coordinate: &Coordinate) -> bool {
+    if coordinate.is_out_of_bounds() {
+        return false;
+    }
     unsafe {
         match &GRID {
             None => panic!("GRID uninitialized!"),
@@ -251,6 +257,9 @@ pub fn should_be_displayed(coordinate: &Coordinate) -> bool {
         match &GRID {
             None => panic!("GRID uninitialized!"),
             Some(grid) => {
+                if coordinate.is_out_of_bounds() {
+                    return false;
+                }
                 return grid.at(&coordinate).is_some() ||
                        grid.at(&coordinate.left()).is_some() ||
                        grid.at(&coordinate.above()).is_some() ||
@@ -321,23 +330,33 @@ pub fn recalculate_subgrid(coordinate: Coordinate) -> () {
                     std::cmp::max(grid.subgrid.max_dimensions.x, coordinate.x),
                     std::cmp::max(grid.subgrid.max_dimensions.y, coordinate.y)
                 );
-                if coordinate.x - 1 < grid.subgrid.start.x && grid.subgrid.end.x > grid.subgrid.max_dimensions.x + 1  {
-                    grid.subgrid.start.x -= 1;
-                    grid.subgrid.end.x -= 1;
-                } else if coordinate.y - 1 < grid.subgrid.start.y && grid.subgrid.end.y > grid.subgrid.max_dimensions.y + 1 {
-                    grid.subgrid.start.y -= 1;
-                    grid.subgrid.end.y -= 1;
-                } else if coordinate.x + 1 > grid.subgrid.end.x && grid.subgrid.start.x < grid.subgrid.min_dimensions.x - 1 {
-                    grid.subgrid.start.x += 1;
-                    grid.subgrid.end.x += 1;
-                } else if coordinate.y + 1 > grid.subgrid.end.y && grid.subgrid.start.y < grid.subgrid.min_dimensions.y - 1  {
-                    grid.subgrid.start.y += 1;
-                    grid.subgrid.end.y += 1;
-                } else {
-                    grid.subgrid.start.x -= 1;
-                    grid.subgrid.start.y -= 1;
-                    grid.subgrid.end.x += 1;
-                    grid.subgrid.end.y += 1;
+                if coordinate.x - 1 < grid.subgrid.start.x || coordinate.y - 1 < grid.subgrid.start.y {
+                    if coordinate.x - 1 < grid.subgrid.start.x && grid.subgrid.end.x > grid.subgrid.max_dimensions.x + 1  {
+                        grid.subgrid.start.x -= 1;
+                        grid.subgrid.end.x -= 1;
+                    } else if coordinate.y - 1 < grid.subgrid.start.y && grid.subgrid.end.y > grid.subgrid.max_dimensions.y + 1 {
+                        grid.subgrid.start.y -= 1;
+                        grid.subgrid.end.y -= 1;
+                    } else {
+                        grid.subgrid.start.x -= 1;
+                        grid.subgrid.start.y -= 1;
+                        grid.subgrid.end.x += 1;
+                        grid.subgrid.end.y += 1;
+                    }
+                }
+                if coordinate.x + 1 > grid.subgrid.end.x || coordinate.y + 1 > grid.subgrid.end.y {
+                    if coordinate.x + 1 > grid.subgrid.end.x && grid.subgrid.start.x < grid.subgrid.min_dimensions.x - 1 {
+                        grid.subgrid.start.x += 1;
+                        grid.subgrid.end.x += 1;
+                    } else if coordinate.y + 1 > grid.subgrid.end.y && grid.subgrid.start.y < grid.subgrid.min_dimensions.y - 1  {
+                        grid.subgrid.start.y += 1;
+                        grid.subgrid.end.y += 1;
+                    } else {
+                        grid.subgrid.start.x -= 1;
+                        grid.subgrid.start.y -= 1;
+                        grid.subgrid.end.x += 1;
+                        grid.subgrid.end.y += 1;
+                    }
                 }
             }
         }
@@ -367,7 +386,7 @@ pub fn tiles_remaining() -> usize {
 }
 
 #[wasm_bindgen]
-pub fn coordinate(x: usize, y: usize) -> Coordinate {
+pub fn coordinate(x: i32, y: i32) -> Coordinate {
     return Coordinate::new(x, y);
 }
 
@@ -424,7 +443,7 @@ fn shuffle_tiles(tiles: &mut Vec<Tile>) -> () {
     tiles.shuffle(&mut rng);
 }
 
-fn xy_to_index(c: &Coordinate) -> usize {
+fn xy_to_index(c: &Coordinate) -> i32 {
     unsafe {
         match &GRID {
             None => panic!("GRID is uninitialized!"),
