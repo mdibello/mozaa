@@ -321,29 +321,23 @@ pub fn recalculate_subgrid(coordinate: Coordinate) -> () {
                     std::cmp::max(grid.subgrid.max_dimensions.x, coordinate.x),
                     std::cmp::max(grid.subgrid.max_dimensions.y, coordinate.y)
                 );
-                if coordinate.x - 1 < grid.subgrid.start.x || coordinate.y - 1 < grid.subgrid.start.y {
-                    if coordinate.x - 1 < grid.subgrid.start.x && grid.subgrid.end.x > grid.subgrid.max_dimensions.x + 1  {
-                        grid.subgrid.start.x -= 1;
-                        grid.subgrid.end.x -= 1;
-                    } else if coordinate.y - 1 < grid.subgrid.start.y && grid.subgrid.end.y > grid.subgrid.max_dimensions.y + 1 {
-                        grid.subgrid.start.y -= 1;
-                        grid.subgrid.end.y -= 1;
-                    } else {
-                        grid.subgrid.start.x -= 1;
-                        grid.subgrid.start.y -= 1;
-                    }
-                }
-                if coordinate.x + 1 > grid.subgrid.end.x || coordinate.y + 1 > grid.subgrid.end.y {
-                    if coordinate.x + 1 > grid.subgrid.end.x && grid.subgrid.start.x < grid.subgrid.min_dimensions.x - 1 {
-                        grid.subgrid.start.x += 1;
-                        grid.subgrid.end.x += 1;
-                    } else if coordinate.y + 1 > grid.subgrid.end.y && grid.subgrid.start.y < grid.subgrid.min_dimensions.y - 1  {
-                        grid.subgrid.start.y += 1;
-                        grid.subgrid.end.y += 1;
-                    } else {
-                        grid.subgrid.end.x += 1;
-                        grid.subgrid.end.y += 1;
-                    }
+                if coordinate.x - 1 < grid.subgrid.start.x && grid.subgrid.end.x > grid.subgrid.max_dimensions.x + 1  {
+                    grid.subgrid.start.x -= 1;
+                    grid.subgrid.end.x -= 1;
+                } else if coordinate.y - 1 < grid.subgrid.start.y && grid.subgrid.end.y > grid.subgrid.max_dimensions.y + 1 {
+                    grid.subgrid.start.y -= 1;
+                    grid.subgrid.end.y -= 1;
+                } else if coordinate.x + 1 > grid.subgrid.end.x && grid.subgrid.start.x < grid.subgrid.min_dimensions.x - 1 {
+                    grid.subgrid.start.x += 1;
+                    grid.subgrid.end.x += 1;
+                } else if coordinate.y + 1 > grid.subgrid.end.y && grid.subgrid.start.y < grid.subgrid.min_dimensions.y - 1  {
+                    grid.subgrid.start.y += 1;
+                    grid.subgrid.end.y += 1;
+                } else {
+                    grid.subgrid.start.x -= 1;
+                    grid.subgrid.start.y -= 1;
+                    grid.subgrid.end.x += 1;
+                    grid.subgrid.end.y += 1;
                 }
             }
         }
