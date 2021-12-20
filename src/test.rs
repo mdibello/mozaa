@@ -23,8 +23,8 @@ fn test_subgrid_calculation() {
     place_tile(&Coordinate::new(35, 32), &tile);
     recalculate_subgrid(Coordinate::new(35, 32));
     std::assert_eq!(get_subgrid(), Subgrid {
-        start: Coordinate { x: 31, y: 30 },
-        end: Coordinate { x: 36, y: 35 },
+        start: Coordinate { x: 27, y: 27 },
+        end: Coordinate { x: 37, y: 37 },
         max_dimensions: Coordinate { x: 35, y: 32 },
         min_dimensions: Coordinate { x: 32, y: 32 }
     });
@@ -41,8 +41,8 @@ fn test_subgrid_calculation_2() {
     place_tile(&Coordinate::new(29, 32), &tile);
     recalculate_subgrid(Coordinate::new(29, 32));
     std::assert_eq!(get_subgrid(), Subgrid {
-        start: Coordinate { x: 28, y: 29 },
-        end: Coordinate { x: 33, y: 34 },
+        start: Coordinate { x: 27, y: 27 },
+        end: Coordinate { x: 37, y: 37 },
         max_dimensions: Coordinate { x: 32, y: 32 },
         min_dimensions: Coordinate { x: 29, y: 32 }
     });
