@@ -1,3 +1,5 @@
+#[cfg(test)]
+
 use crate::*;
 
 #[test]
@@ -122,7 +124,6 @@ fn test_score_1() {
     let initial_coord = Coordinate::new(32, 32);
     let mut tile = Tile::new(Color::GRAY, Color::GRAY, Color::GRAY, Color::GRAY);
     place_tile(&initial_coord.right(), &mut tile);
-    unsafe { println!("{:?}", NODES); }
     std::assert_eq!(score(), 0);
 }
 
@@ -132,7 +133,6 @@ fn test_score_2() {
     let initial_coord = Coordinate::new(32, 32);
     let mut tile = Tile::new(Color::GRAY, Color::RED, Color::RED, Color::RED);
     place_tile(&initial_coord.right(), &mut tile);
-    unsafe { println!("{:?}", NODES); }
     std::assert_eq!(score(), 2);
 }
 
@@ -144,7 +144,6 @@ fn test_score_3() {
     place_tile(&initial_coord.right(), &mut tile);
     tile = Tile::new(Color::RED, Color::GRAY, Color::RED, Color::RED);
     place_tile(&initial_coord.right().below(), &mut tile);
-    unsafe {  }
     std::assert_eq!(score(), 3);
 }
 
@@ -158,6 +157,14 @@ fn test_score_4() {
     place_tile(&initial_coord.right().below(), &mut tile);
     tile = Tile::new(Color::GRAY, Color::RED, Color::GRAY, Color::RED);
     place_tile(&initial_coord.below(), &mut tile);
-    unsafe { println!("{:?}", NODES); }
     std::assert_eq!(score(), 10);
+}
+
+#[test]
+fn test_score_5() {
+    initialize();
+    let initial_coord = Coordinate::new(32, 32);
+    let mut tile = Tile::new(Color::GRAY, Color::GRAY, Color::BLUE, Color::BLUE);
+    place_tile(&initial_coord.above(), &mut tile);
+    std::assert_eq!(score(), 0);
 }

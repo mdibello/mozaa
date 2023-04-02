@@ -571,30 +571,34 @@ pub fn calculate_score(tile: Tile) -> () {
             let mut tiles: HashSet<u64> = HashSet::new();
             let origin_node = &NODES[origin];
             println!("ORIGIN: {:?}", origin_node);
-            pending.push_back(origin);
-            visited.insert(origin);
-            tiles.insert(origin_node.tile_id);
+            if !visited.contains(&origin) {
+                pending.push_back(origin);
+                visited.insert(origin);
+                tiles.insert(origin_node.tile_id);
+            }
             let mut valid = true;
             while !pending.is_empty() {
+                println!("{:?}", visited);
                 let node_id = pending.pop_front().unwrap();
                 let adjacent_ids = &NODES[node_id].edges;
                 if adjacent_ids.len() != 3 {
                     valid = false;
-                    break;
                 }
                 for &id in adjacent_ids {
                     let node = &NODES[id];
                     println!("ADJACENT: {:?}", node);
                     if node.color == origin_node.color {
                         if !visited.contains(&id) {
-                            pending.push_back(id);
                             visited.insert(id);
-                            tiles.insert(node.tile_id);
+                            pending.push_back(id);
+                            if valid {
+                                tiles.insert(node.tile_id);
+                            }
                         }
                     }
                 }
             }
-            println!("VALID: {}", valid);
+            println!("VALID: {}\n", valid);
             if valid {
                 score += tiles.len();
                 if tiles.len() > 3 {
