@@ -54,11 +54,11 @@ fn test_subgrid_calculation_2() {
 fn test_graph_single_tile() {
     initialize();
     unsafe {
-        std::assert_eq!(NODES.len(), 4);
-        std::assert_eq!(NODES[0].edges, vec![1,3]);
-        std::assert_eq!(NODES[1].edges, vec![0,2]);
-        std::assert_eq!(NODES[2].edges, vec![1,3]);
-        std::assert_eq!(NODES[3].edges, vec![0,2]);
+        std::assert_eq!(STATE.NODES.len(), 4);
+        std::assert_eq!(STATE.NODES[0].edges, vec![1,3]);
+        std::assert_eq!(STATE.NODES[1].edges, vec![0,2]);
+        std::assert_eq!(STATE.NODES[2].edges, vec![1,3]);
+        std::assert_eq!(STATE.NODES[3].edges, vec![0,2]);
     }
 }
 
@@ -69,15 +69,15 @@ fn test_graph_plus_one_tile() {
     let mut tile = Tile::new(Color::GRAY, Color::GRAY, Color::GRAY, Color::GRAY);
     place_tile(&initial_coord.right(), &mut tile);
     unsafe {
-        std::assert_eq!(NODES.len(), 8);
-        std::assert_eq!(NODES[0].edges, vec![1,3]);
-        std::assert_eq!(NODES[1].edges, vec![0,2]);
-        std::assert_eq!(NODES[2].edges, vec![1,3,4]);
-        std::assert_eq!(NODES[3].edges, vec![0,2]);
-        std::assert_eq!(NODES[4].edges, vec![5,7,2]);
-        std::assert_eq!(NODES[5].edges, vec![4,6]);
-        std::assert_eq!(NODES[6].edges, vec![5,7]);
-        std::assert_eq!(NODES[7].edges, vec![4,6]);
+        std::assert_eq!(STATE.NODES.len(), 8);
+        std::assert_eq!(STATE.NODES[0].edges, vec![1,3]);
+        std::assert_eq!(STATE.NODES[1].edges, vec![0,2]);
+        std::assert_eq!(STATE.NODES[2].edges, vec![1,3,4]);
+        std::assert_eq!(STATE.NODES[3].edges, vec![0,2]);
+        std::assert_eq!(STATE.NODES[4].edges, vec![5,7,2]);
+        std::assert_eq!(STATE.NODES[5].edges, vec![4,6]);
+        std::assert_eq!(STATE.NODES[6].edges, vec![5,7]);
+        std::assert_eq!(STATE.NODES[7].edges, vec![4,6]);
     }
 }
 
@@ -92,23 +92,23 @@ fn test_graph_plus_three_tiles() {
     tile = Tile::new(Color::GRAY, Color::GRAY, Color::GRAY, Color::GRAY);
     place_tile(&(initial_coord.right()).below(), &mut tile);
     unsafe {
-        std::assert_eq!(NODES.len(), 16);
-        std::assert_eq!(NODES[0].edges, vec![1,3]);
-        std::assert_eq!(NODES[1].edges, vec![0,2]);
-        std::assert_eq!(NODES[2].edges, vec![1,3,4]);
-        std::assert_eq!(NODES[3].edges, vec![0,2,9]);
-        std::assert_eq!(NODES[4].edges, vec![5,7,2]);
-        std::assert_eq!(NODES[5].edges, vec![4,6]);
-        std::assert_eq!(NODES[6].edges, vec![5,7]);
-        std::assert_eq!(NODES[7].edges, vec![4,6,13]);
-        std::assert_eq!(NODES[8].edges, vec![9,11]);
-        std::assert_eq!(NODES[9].edges, vec![8,10,3]);
-        std::assert_eq!(NODES[10].edges, vec![9,11,12]);
-        std::assert_eq!(NODES[11].edges, vec![8,10]);
-        std::assert_eq!(NODES[12].edges, vec![13,15,10]);
-        std::assert_eq!(NODES[13].edges, vec![12,14,7]);
-        std::assert_eq!(NODES[14].edges, vec![13,15]);
-        std::assert_eq!(NODES[15].edges, vec![12,14]);
+        std::assert_eq!(STATE.NODES.len(), 16);
+        std::assert_eq!(STATE.NODES[0].edges, vec![1,3]);
+        std::assert_eq!(STATE.NODES[1].edges, vec![0,2]);
+        std::assert_eq!(STATE.NODES[2].edges, vec![1,3,4]);
+        std::assert_eq!(STATE.NODES[3].edges, vec![0,2,9]);
+        std::assert_eq!(STATE.NODES[4].edges, vec![5,7,2]);
+        std::assert_eq!(STATE.NODES[5].edges, vec![4,6]);
+        std::assert_eq!(STATE.NODES[6].edges, vec![5,7]);
+        std::assert_eq!(STATE.NODES[7].edges, vec![4,6,13]);
+        std::assert_eq!(STATE.NODES[8].edges, vec![9,11]);
+        std::assert_eq!(STATE.NODES[9].edges, vec![8,10,3]);
+        std::assert_eq!(STATE.NODES[10].edges, vec![9,11,12]);
+        std::assert_eq!(STATE.NODES[11].edges, vec![8,10]);
+        std::assert_eq!(STATE.NODES[12].edges, vec![13,15,10]);
+        std::assert_eq!(STATE.NODES[13].edges, vec![12,14,7]);
+        std::assert_eq!(STATE.NODES[14].edges, vec![13,15]);
+        std::assert_eq!(STATE.NODES[15].edges, vec![12,14]);
     }
 }
 

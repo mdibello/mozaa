@@ -16,6 +16,8 @@ import {
     add_more_tiles,
     total_score,
     score,
+    serialize_state,
+    deserialize_state,
     default as init
 } from './pkg/mozaa.js';
 
@@ -98,6 +100,32 @@ function render() {
         render();
     });
 
+    document.getElementById("download").addEventListener("click", function(_) {
+        let data_str = "data:text/json;charset=utf-8," + encodeURIComponent(serialize_state());
+        var download_anchor_node = document.createElement('a');
+        download_anchor_node.setAttribute("href", data_str);
+        download_anchor_node.setAttribute("download", "mozaa.json");
+        download_anchor_node.click();
+        download_anchor_node.remove();
+    });
+
+    document.getElementById("upload").addEventListener("click", function(_) {
+        let input_anchor_node = document.createElement('input');
+        input_anchor_node.type = 'file';
+        input_anchor_node.onchange = e => {
+            let file = e.target.files[0];
+            let reader = new FileReader();
+            reader.readAsText(file, 'UTF-8');
+            reader.onload = e => {
+                deserialize_state(e.target.result);
+                current_tile = get_current_tile();
+                render();
+            };
+        };
+        input_anchor_node.click();
+        input_anchor_node.remove();
+    });
+
     if (!final_tile) {
         let spaces = document.getElementsByClassName("space");
         for (let i = 0; i < spaces.length; i++) {
@@ -139,6 +167,8 @@ function render() {
             event.target.style.cursor = "default";
         });
     }
+
+    console.log(serialize_state());
 }
 
 function rotate_on_click() {
@@ -176,6 +206,9 @@ function create_info_table() {
             <div style="width:100%;text-align:center">
                 <button id="new-tile">Draw New Tile</button>
                 <button id="add-tiles">Add More Tiles</button>
+                <br>
+                <button id="download">Save Game</button>
+                <button id="upload">Load Game</button>
             </div>
         </div>`;
     return table;

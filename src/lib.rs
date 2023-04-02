@@ -5,20 +5,36 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use serde::{Serialize, Deserialize};
+use serde_json;
 
-static mut GRID: Option<Grid> = None;
-static mut TILES: Option<Vec<Tile>> = None;
-static mut CURRENT_TILE: Option<Tile> = None;
-static mut UNIQUE_TILESET: Option<Vec<Tile>> = None;
-static mut NODES: Vec<Node> = Vec::new();
-static mut SCORES: Vec<usize> = Vec::new();
-static mut TILES_CREATED: u64 = 0;
+static mut STATE: State = State {
+    GRID: None,
+    TILES: None,
+    CURRENT_TILE: None,
+    UNIQUE_TILESET: None,
+    NODES: Vec::new(),
+    SCORES: Vec::new(),
+    TILES_CREATED: 0
+};
+
+#[derive(Serialize, Deserialize)]
+#[allow(non_snake_case)]
+pub struct State {
+    GRID: Option<Grid>,
+    TILES: Option<Vec<Tile>>,
+    CURRENT_TILE: Option<Tile>,
+    UNIQUE_TILESET: Option<Vec<Tile>>,
+    NODES: Vec<Node>,
+    SCORES: Vec<usize>,
+    TILES_CREATED: u64
+}
 
 #[wasm_bindgen]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Color { PURPLE, BLUE, GRAY, RED }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Node {
     pub id: usize,
     pub color: Color,
@@ -37,14 +53,14 @@ impl Node {
 
 fn create_node(color: Color, tile_id: u64) -> usize {
     unsafe {
-        let id: usize = NODES.len();
-        NODES.push(Node::new(id, color, tile_id));
+        let id: usize = STATE.NODES.len();
+        STATE.NODES.push(Node::new(id, color, tile_id));
         return id;
     }
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Tile {
     pub id: u64,
     pub left: Color,
@@ -60,7 +76,7 @@ pub struct Tile {
 impl Tile {
     fn new(left: Color, top: Color, right: Color, bottom: Color) -> Tile {
         let tile = Tile {
-            id: unsafe { TILES_CREATED },
+            id: unsafe { STATE.TILES_CREATED },
             left: left,
             top: top,
             right: right,
@@ -70,7 +86,7 @@ impl Tile {
             right_id: None,
             bottom_id: None,
         };
-        unsafe { TILES_CREATED += 1; }
+        unsafe { STATE.TILES_CREATED += 1; }
         return tile;
     }
     fn default() -> Tile {
@@ -112,6 +128,7 @@ impl Tile {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 struct Grid {
     tiles: Vec<Option<Tile>>,
     width: i32,
@@ -130,7 +147,7 @@ impl Grid {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Subgrid {
     pub start: Coordinate,
     pub end: Coordinate,
@@ -139,7 +156,7 @@ pub struct Subgrid {
 }
 
 #[wasm_bindgen]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Coordinate {
     pub x: i32,
     pub y: i32
@@ -172,7 +189,7 @@ pub fn initialize() -> () {
     unsafe {
         let grid: Vec<Option<Tile>> = vec![None; 64 * 64];
 
-        GRID = Some(Grid {
+        STATE.GRID = Some(Grid {
             tiles: grid,
             width: 64,
             subgrid: Subgrid {
@@ -184,8 +201,8 @@ pub fn initialize() -> () {
             count: 0
         });
 
-        NODES = Vec::new();
-        TILES_CREATED = 0;
+        STATE.NODES = Vec::new();
+        STATE.TILES_CREATED = 0;
         
         place_tile(&coordinate(32, 32), &mut Tile::default());
 
@@ -206,12 +223,12 @@ pub fn initialize() -> () {
             }
         }
 
-        UNIQUE_TILESET = Some(tiles.clone());
+        STATE.UNIQUE_TILESET = Some(tiles.clone());
         shuffle_tiles(&mut tiles);
-        CURRENT_TILE = Some(tiles.pop().unwrap());
-        TILES = Some(tiles);
+        STATE.CURRENT_TILE = Some(tiles.pop().unwrap());
+        STATE.TILES = Some(tiles);
 
-        SCORES = vec![0];
+        STATE.SCORES = vec![0];
     }
 }
 
@@ -221,8 +238,8 @@ pub fn is_valid_placement(new_tile: &Tile, coordinate: &Coordinate) -> bool {
         return false;
     }
     unsafe {
-        match &mut GRID {
-            None => panic!("GRID uninitialized!"),
+        match &mut STATE.GRID {
+            None => panic!("STATE.GRID uninitialized!"),
             Some(grid) => {
                 if grid.count == 0 {
                     return true;
@@ -274,8 +291,8 @@ pub fn is_valid_placement(new_tile: &Tile, coordinate: &Coordinate) -> bool {
 #[wasm_bindgen]
 pub fn get_tile(coordinate: &Coordinate) -> Tile {
     unsafe {
-        match &GRID {
-            None => panic!("GRID uninitialized"),
+        match &STATE.GRID {
+            None => panic!("STATE.GRID uninitialized"),
             Some(grid) => {
                 match grid.at(coordinate) {
                     None => panic!("Tried to get tile that doesn't exist!"),
@@ -290,22 +307,22 @@ pub fn get_tile(coordinate: &Coordinate) -> Tile {
 pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile) -> () {
     if is_valid_placement(tile, coordinate) {
         unsafe {
-            match &mut GRID {
-                None => panic!("GRID uninitialized!"),
+            match &mut STATE.GRID {
+                None => panic!("STATE.GRID uninitialized!"),
                 Some(grid) => {
                     let left = create_node(tile.left, tile.id);
                     let top = create_node(tile.top, tile.id);
                     let right = create_node(tile.right, tile.id);
                     let bottom = create_node(tile.bottom, tile.id);
 
-                    NODES[left].add_edge(top);
-                    NODES[left].add_edge(bottom);
-                    NODES[top].add_edge(left);
-                    NODES[top].add_edge(right);
-                    NODES[right].add_edge(top);
-                    NODES[right].add_edge(bottom);
-                    NODES[bottom].add_edge(left);
-                    NODES[bottom].add_edge(right);
+                    STATE.NODES[left].add_edge(top);
+                    STATE.NODES[left].add_edge(bottom);
+                    STATE.NODES[top].add_edge(left);
+                    STATE.NODES[top].add_edge(right);
+                    STATE.NODES[right].add_edge(top);
+                    STATE.NODES[right].add_edge(bottom);
+                    STATE.NODES[bottom].add_edge(left);
+                    STATE.NODES[bottom].add_edge(right);
 
                     tile.left_id = Some(left);
                     tile.top_id = Some(top);
@@ -319,8 +336,8 @@ pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile) -> () {
                         Some(t) => {
                             match t.right_id {
                                 Some(id) => {
-                                    NODES[id].add_edge(tile.left_id.unwrap());
-                                    NODES[tile.left_id.unwrap()].add_edge(id);
+                                    STATE.NODES[id].add_edge(tile.left_id.unwrap());
+                                    STATE.NODES[tile.left_id.unwrap()].add_edge(id);
                                 },
                                 None => ()
                             }
@@ -332,8 +349,8 @@ pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile) -> () {
                         Some(t) => {
                             match t.bottom_id {
                                 Some(id) => {
-                                    NODES[id].add_edge(tile.top_id.unwrap());
-                                    NODES[tile.top_id.unwrap()].add_edge(id);
+                                    STATE.NODES[id].add_edge(tile.top_id.unwrap());
+                                    STATE.NODES[tile.top_id.unwrap()].add_edge(id);
                                 },
                                 None => ()
                             }
@@ -345,8 +362,8 @@ pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile) -> () {
                         Some(t) => {
                             match t.left_id {
                                 Some(id) => {
-                                    NODES[id].add_edge(tile.right_id.unwrap());
-                                    NODES[tile.right_id.unwrap()].add_edge(id);
+                                    STATE.NODES[id].add_edge(tile.right_id.unwrap());
+                                    STATE.NODES[tile.right_id.unwrap()].add_edge(id);
                                 },
                                 None => ()
                             }
@@ -358,8 +375,8 @@ pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile) -> () {
                         Some(t) => {
                             match t.top_id {
                                 Some(id) => {
-                                    NODES[id].add_edge(tile.bottom_id.unwrap());
-                                    NODES[tile.bottom_id.unwrap()].add_edge(id);
+                                    STATE.NODES[id].add_edge(tile.bottom_id.unwrap());
+                                    STATE.NODES[tile.bottom_id.unwrap()].add_edge(id);
                                 },
                                 None => ()
                             }
@@ -382,8 +399,8 @@ pub fn rotate_tile(tile: Tile, times: u8) -> Tile {
 #[wasm_bindgen]
 pub fn should_be_displayed(coordinate: &Coordinate) -> bool {
     unsafe {
-        match &GRID {
-            None => panic!("GRID uninitialized!"),
+        match &STATE.GRID {
+            None => panic!("STATE.GRID uninitialized!"),
             Some(grid) => {
                 if coordinate.is_out_of_bounds() {
                     return false;
@@ -401,8 +418,8 @@ pub fn should_be_displayed(coordinate: &Coordinate) -> bool {
 #[wasm_bindgen]
 pub fn contains_tile(coordinate: &Coordinate) -> bool {
     unsafe {
-        match &GRID {
-            None => panic!("GRID uninitialized!"),
+        match &STATE.GRID {
+            None => panic!("STATE.GRID uninitialized!"),
             Some(grid) => {
                 match grid.at(coordinate) {
                     None => return false,
@@ -416,8 +433,8 @@ pub fn contains_tile(coordinate: &Coordinate) -> bool {
 #[wasm_bindgen]
 pub fn get_current_tile() -> Tile {
     unsafe {
-        match &CURRENT_TILE {
-            None => panic!("CURRENT_TILE uninitialized!"),
+        match &STATE.CURRENT_TILE {
+            None => panic!("STATE.CURRENT_TILE uninitialized!"),
             Some(tile) => return tile.clone(),
         }
     }
@@ -426,10 +443,10 @@ pub fn get_current_tile() -> Tile {
 #[wasm_bindgen]
 pub fn draw_new_tile() -> () {
     unsafe {
-        match &mut TILES {
-            None => panic!("TILES uninitialized!"),
+        match &mut STATE.TILES {
+            None => panic!("STATE.TILES uninitialized!"),
             Some(tiles) => {
-                match &mut CURRENT_TILE {
+                match &mut STATE.CURRENT_TILE {
                     None => (),
                     Some(current_tile) => {
                         if tiles.len() > 0 {
@@ -447,8 +464,8 @@ pub fn draw_new_tile() -> () {
 #[wasm_bindgen]
 pub fn recalculate_subgrid(coordinate: Coordinate) -> () {
     unsafe {
-        match &mut GRID {
-            None => panic!("GRID uninitialized!"),
+        match &mut STATE.GRID {
+            None => panic!("STATE.GRID uninitialized!"),
             Some(grid) => {
                 grid.subgrid.min_dimensions = Coordinate::new(
                     std::cmp::min(grid.subgrid.min_dimensions.x, coordinate.x),
@@ -494,8 +511,8 @@ pub fn recalculate_subgrid(coordinate: Coordinate) -> () {
 #[wasm_bindgen]
 pub fn get_subgrid() -> Subgrid {
     unsafe {
-        match &GRID {
-            None => panic!("GRID uninitialized!"),
+        match &STATE.GRID {
+            None => panic!("STATE.GRID uninitialized!"),
             Some(grid) => {
                 return grid.subgrid.clone();
             }
@@ -506,8 +523,8 @@ pub fn get_subgrid() -> Subgrid {
 #[wasm_bindgen]
 pub fn tiles_remaining() -> usize {
     unsafe {
-        match &TILES {
-            None => panic!("TILES uninitialized!"),
+        match &STATE.TILES {
+            None => panic!("STATE.TILES uninitialized!"),
             Some(tiles) => return tiles.len()
         }
     }
@@ -521,11 +538,11 @@ pub fn coordinate(x: i32, y: i32) -> Coordinate {
 #[wasm_bindgen]
 pub fn select_new_tile() -> () {
     unsafe {
-        match &mut TILES {
-            None => panic!("TILES uninitialized!"),
+        match &mut STATE.TILES {
+            None => panic!("STATE.TILES uninitialized!"),
             Some(tiles) => {
-                match &mut CURRENT_TILE {
-                    None => panic!("CURRENT_TILE uninitialized!"),
+                match &mut STATE.CURRENT_TILE {
+                    None => panic!("STATE.CURRENT_TILE uninitialized!"),
                     Some(current_tile) => {
                         tiles.push(current_tile.clone());
                         shuffle_tiles(tiles);
@@ -540,15 +557,15 @@ pub fn select_new_tile() -> () {
 #[wasm_bindgen]
 pub fn add_more_tiles() -> () {
     unsafe {
-        match &mut TILES {
-            None => panic!("TILES uninitialized!"),
+        match &mut STATE.TILES {
+            None => panic!("STATE.TILES uninitialized!"),
             Some(tiles) => {
-                match &UNIQUE_TILESET {
-                    None => panic!("UNIQUE_TILESET uninitialized!"),
+                match &STATE.UNIQUE_TILESET {
+                    None => panic!("UNIQUE_STATE.TILESET uninitialized!"),
                     Some(unique_tileset) => {
                         tiles.append(&mut unique_tileset.clone());
                         shuffle_tiles(tiles);
-                        match &CURRENT_TILE {
+                        match &STATE.CURRENT_TILE {
                             Some(_) => (),
                             None => {
                                 draw_new_tile();
@@ -563,13 +580,13 @@ pub fn add_more_tiles() -> () {
 
 pub fn calculate_score(tile: Tile) -> () {
     unsafe {
-        println!("{:?}", NODES);
+        println!("{:?}", STATE.NODES);
         let mut visited: HashSet<usize> = HashSet::new();
         let mut score: usize = 0;
         for origin in tile.get_nodes() {
             let mut pending: VecDeque<usize> = VecDeque::new();
             let mut tiles: HashSet<u64> = HashSet::new();
-            let origin_node = &NODES[origin];
+            let origin_node = &STATE.NODES[origin];
             println!("ORIGIN: {:?}", origin_node);
             if !visited.contains(&origin) {
                 pending.push_back(origin);
@@ -580,12 +597,12 @@ pub fn calculate_score(tile: Tile) -> () {
             while !pending.is_empty() {
                 println!("{:?}", visited);
                 let node_id = pending.pop_front().unwrap();
-                let adjacent_ids = &NODES[node_id].edges;
+                let adjacent_ids = &STATE.NODES[node_id].edges;
                 if adjacent_ids.len() != 3 {
                     valid = false;
                 }
                 for &id in adjacent_ids {
-                    let node = &NODES[id];
+                    let node = &STATE.NODES[id];
                     println!("ADJACENT: {:?}", node);
                     if node.color == origin_node.color {
                         if !visited.contains(&id) {
@@ -607,21 +624,21 @@ pub fn calculate_score(tile: Tile) -> () {
             }
         }
         println!("SCORE: {}", score);
-        SCORES.push(score);
+        STATE.SCORES.push(score);
     }
 }
 
 #[wasm_bindgen]
 pub fn score() -> i32 {
     unsafe {
-        return *SCORES.last().unwrap() as i32;
+        return *STATE.SCORES.last().unwrap() as i32;
     }
 }
 
 #[wasm_bindgen]
 pub fn total_score() -> i32 {
     unsafe {
-        return SCORES.iter().sum::<usize>() as i32;
+        return STATE.SCORES.iter().sum::<usize>() as i32;
     }
 }
 
@@ -632,9 +649,23 @@ fn shuffle_tiles(tiles: &mut Vec<Tile>) -> () {
 
 fn xy_to_index(c: &Coordinate) -> i32 {
     unsafe {
-        match &GRID {
-            None => panic!("GRID is uninitialized!"),
+        match &STATE.GRID {
+            None => panic!("STATE.GRID is uninitialized!"),
             Some(g) => return (c.y * g.width) + c.x,
         }
+    }
+}
+
+#[wasm_bindgen]
+pub fn serialize_state() -> String {
+    unsafe {
+        return serde_json::to_string(&STATE).unwrap();
+    }
+}
+
+#[wasm_bindgen]
+pub fn deserialize_state(payload: String) -> () {
+    unsafe {
+        STATE = serde_json::from_str(&payload).unwrap();
     }
 }
