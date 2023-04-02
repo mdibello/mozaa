@@ -8,10 +8,34 @@ static mut GRID: Option<Grid> = None;
 static mut TILES: Option<Vec<Tile>> = None;
 static mut CURRENT_TILE: Option<Tile> = None;
 static mut UNIQUE_TILESET: Option<Vec<Tile>> = None;
+static mut NODES: Vec<Node> = Vec::new();
 
 #[wasm_bindgen]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Color { PURPLE, BLUE, GRAY, RED }
+
+#[derive(Clone, Debug)]
+pub struct Node {
+    pub id: usize,
+    pub edges: Vec<usize>
+}
+
+impl Node {
+    fn new(id: usize) -> Node {
+        return Node { id: id, edges: Vec::new() }
+    }
+    fn add_edge(&mut self, id: usize) -> () {
+        self.edges.push(id);
+    }
+}
+
+fn create_node() -> usize {
+    unsafe {
+        let id: usize = NODES.len();
+        NODES.push(Node::new(id));
+        return id;
+    }
+}
 
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug)]
@@ -19,17 +43,26 @@ pub struct Tile {
     pub left: Color,
     pub top: Color,
     pub right: Color,
-    pub bottom: Color
+    pub bottom: Color,
+    pub left_id: Option<usize>,
+    pub top_id: Option<usize>,
+    pub right_id: Option<usize>,
+    pub bottom_id: Option<usize>
 }
 
 impl Tile {
     fn new(left: Color, top: Color, right: Color, bottom: Color) -> Tile {
-        return Tile {
+        let tile = Tile {
             left: left,
             top: top,
             right: right,
-            bottom: bottom
-        }
+            bottom: bottom,
+            left_id: None,
+            top_id: None,
+            right_id: None,
+            bottom_id: None,
+        };
+        return tile;
     }
     fn default() -> Tile {
         return Tile::new(Color::PURPLE, Color::BLUE, Color::GRAY, Color::RED);
@@ -70,7 +103,8 @@ impl Tile {
 struct Grid {
     tiles: Vec<Option<Tile>>,
     width: i32,
-    subgrid: Subgrid
+    subgrid: Subgrid,
+    is_empty: bool
 }
 
 impl Grid {
@@ -123,9 +157,7 @@ impl Coordinate {
 pub fn initialize() -> () {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     unsafe {
-        let mut grid: Vec<Option<Tile>> = vec![None; 64 * 64];
-        let starting_index = (32 * 64) + 32;
-        grid[starting_index] = Some(Tile::default());
+        let grid: Vec<Option<Tile>> = vec![None; 64 * 64];
 
         GRID = Some(Grid {
             tiles: grid,
@@ -135,10 +167,13 @@ pub fn initialize() -> () {
                 end: Coordinate { x: 34, y: 34 },
                 max_dimensions: Coordinate { x: 32, y: 32 },
                 min_dimensions: Coordinate { x: 32, y: 32 }
-            }
+            },
+            is_empty: true
         });
+
+        NODES = Vec::new();
         
-        place_tile(&coordinate(32, 32), &Tile::default());
+        place_tile(&coordinate(32, 32), &mut Tile::default());
 
         let colors = vec![Color::PURPLE, Color::BLUE, Color::GRAY, Color::RED];
         let mut tiles: Vec<Tile> = Vec::new();
@@ -170,9 +205,13 @@ pub fn is_valid_placement(new_tile: &Tile, coordinate: &Coordinate) -> bool {
         return false;
     }
     unsafe {
-        match &GRID {
+        match &mut GRID {
             None => panic!("GRID uninitialized!"),
             Some(grid) => {
+                if grid.is_empty {
+                    grid.is_empty = false;
+                    return true;
+                }
                 match grid.at(&coordinate) {
                     None => (),
                     Some(_) => {
@@ -233,13 +272,89 @@ pub fn get_tile(coordinate: &Coordinate) -> Tile {
 }
 
 #[wasm_bindgen]
-pub fn place_tile(coordinate: &Coordinate, tile: &Tile) -> () {
+pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile) -> () {
     if is_valid_placement(tile, coordinate) {
         unsafe {
             match &mut GRID {
                 None => panic!("GRID uninitialized!"),
                 Some(grid) => {
+                    let left = create_node();
+                    let top = create_node();
+                    let right = create_node();
+                    let bottom = create_node();
+
+                    NODES[left].add_edge(top);
+                    NODES[left].add_edge(right);
+                    NODES[left].add_edge(bottom);
+                    NODES[top].add_edge(left);
+                    NODES[top].add_edge(right);
+                    NODES[top].add_edge(bottom);
+                    NODES[right].add_edge(left);
+                    NODES[right].add_edge(top);
+                    NODES[right].add_edge(bottom);
+                    NODES[bottom].add_edge(left);
+                    NODES[bottom].add_edge(top);
+                    NODES[bottom].add_edge(right);
+
+                    tile.left_id = Some(left);
+                    tile.top_id = Some(top);
+                    tile.right_id = Some(right);
+                    tile.bottom_id = Some(bottom);
+
                     grid.place(tile.clone(), coordinate);
+
+                    let left_tile = grid.tiles[xy_to_index(&coordinate.left()) as usize];
+                    match left_tile {
+                        Some(t) => {
+                            match t.right_id {
+                                Some(id) => {
+                                    NODES[id].add_edge(tile.left_id.unwrap());
+                                    NODES[tile.left_id.unwrap()].add_edge(id);
+                                },
+                                None => ()
+                            }
+                        },
+                        None => ()
+                    }
+                    let top_tile = grid.tiles[xy_to_index(&coordinate.above()) as usize];
+                    match top_tile {
+                        Some(t) => {
+                            match t.bottom_id {
+                                Some(id) => {
+                                    NODES[id].add_edge(tile.top_id.unwrap());
+                                    NODES[tile.top_id.unwrap()].add_edge(id);
+                                },
+                                None => ()
+                            }
+                        },
+                        None => ()
+                    }
+                    let right_tile = grid.tiles[xy_to_index(&coordinate.right()) as usize];
+                    match right_tile {
+                        Some(t) => {
+                            match t.left_id {
+                                Some(id) => {
+                                    NODES[id].add_edge(tile.right_id.unwrap());
+                                    NODES[tile.right_id.unwrap()].add_edge(id);
+                                },
+                                None => ()
+                            }
+                        },
+                        None => ()
+                    }
+                    let bottom_tile = grid.tiles[xy_to_index(&coordinate.below()) as usize];
+                    match bottom_tile {
+                        Some(t) => {
+                            match (t.top_id) {
+                                Some(id) => {
+                                    NODES[id].add_edge(tile.bottom_id.unwrap());
+                                    NODES[tile.bottom_id.unwrap()].add_edge(id);
+                                },
+                                None => ()
+                            }
+                        },
+                        None => ()
+                    }
                 }
             }
         }
