@@ -15,6 +15,7 @@ static mut STATE: State = State {
     UNIQUE_TILESET: None,
     NODES: Vec::new(),
     SCORES: Vec::new(),
+    HISTORY: Vec::new(),
     TILES_CREATED: 0
 };
 
@@ -27,6 +28,7 @@ pub struct State {
     UNIQUE_TILESET: Option<Vec<Tile>>,
     NODES: Vec<Node>,
     SCORES: Vec<usize>,
+    HISTORY: Vec<Turn>,
     TILES_CREATED: u64
 }
 
@@ -183,6 +185,14 @@ impl Coordinate {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+#[wasm_bindgen]
+pub struct Turn {
+    player: usize,
+    tile: Tile,
+    location: Coordinate
+}
+
 #[wasm_bindgen]
 pub fn initialize() -> () {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
@@ -204,7 +214,7 @@ pub fn initialize() -> () {
         STATE.NODES = Vec::new();
         STATE.TILES_CREATED = 0;
         
-        place_tile(&coordinate(32, 32), &mut Tile::default());
+        place_tile(&coordinate(32, 32), &mut Tile::default(), 0);
 
         let colors = vec![Color::PURPLE, Color::BLUE, Color::GRAY, Color::RED];
         let mut tiles: Vec<Tile> = Vec::new();
@@ -304,7 +314,7 @@ pub fn get_tile(coordinate: &Coordinate) -> Tile {
 }
 
 #[wasm_bindgen]
-pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile) -> () {
+pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile, player: usize) -> () {
     if is_valid_placement(tile, coordinate) {
         unsafe {
             match &mut STATE.GRID {
@@ -383,6 +393,10 @@ pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile) -> () {
                         },
                         None => ()
                     }
+
+                    STATE.HISTORY.push(
+                        Turn { player: player, tile: *tile, location: *coordinate }
+                    );
 
                     calculate_score(*tile);
                 }

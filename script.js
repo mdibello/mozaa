@@ -143,7 +143,7 @@ function render() {
                 let tile_x = parseInt(this.attributes.x.value);
                 let tile_y = parseInt(this.attributes.y.value);
                 if (is_valid_placement(current_tile, coordinate(tile_x, tile_y))) {
-                    place_tile(coordinate(tile_x, tile_y), current_tile);
+                    place_tile(coordinate(tile_x, tile_y), current_tile, 1);
                     recalculate_subgrid(coordinate(tile_x, tile_y));
                     if (tiles_remaining() > 0) {
                         draw_new_tile();

@@ -18,11 +18,11 @@ fn test_empty_space() {
 fn test_subgrid_calculation() {
     initialize();
     let mut tile = Tile::new(Color::GRAY, Color::GRAY, Color::GRAY, Color::GRAY);
-    place_tile(&Coordinate::new(33, 32), &mut tile);
+    place_tile(&Coordinate::new(33, 32), &mut tile, 1);
     recalculate_subgrid(Coordinate::new(33, 32));
-    place_tile(&Coordinate::new(34, 32), &mut tile);
+    place_tile(&Coordinate::new(34, 32), &mut tile, 1);
     recalculate_subgrid(Coordinate::new(34, 32));
-    place_tile(&Coordinate::new(35, 32), &mut tile);
+    place_tile(&Coordinate::new(35, 32), &mut tile, 1);
     recalculate_subgrid(Coordinate::new(35, 32));
     std::assert_eq!(get_subgrid(), Subgrid {
         start: Coordinate { x: 30, y: 29 },
@@ -36,11 +36,11 @@ fn test_subgrid_calculation() {
 fn test_subgrid_calculation_2() {
     initialize();
     let mut tile = Tile::new(Color::GRAY, Color::GRAY, Color::GRAY, Color::GRAY);
-    place_tile(&Coordinate::new(31, 32), &mut tile);
+    place_tile(&Coordinate::new(31, 32), &mut tile, 1);
     recalculate_subgrid(Coordinate::new(31, 32));
-    place_tile(&Coordinate::new(30, 32), &mut tile);
+    place_tile(&Coordinate::new(30, 32), &mut tile, 1);
     recalculate_subgrid(Coordinate::new(30, 32));
-    place_tile(&Coordinate::new(29, 32), &mut tile);
+    place_tile(&Coordinate::new(29, 32), &mut tile, 1);
     recalculate_subgrid(Coordinate::new(29, 32));
     std::assert_eq!(get_subgrid(), Subgrid {
         start: Coordinate { x: 28, y: 29 },
@@ -67,7 +67,7 @@ fn test_graph_plus_one_tile() {
     initialize();
     let initial_coord = Coordinate::new(32, 32);
     let mut tile = Tile::new(Color::GRAY, Color::GRAY, Color::GRAY, Color::GRAY);
-    place_tile(&initial_coord.right(), &mut tile);
+    place_tile(&initial_coord.right(), &mut tile, 1);
     unsafe {
         std::assert_eq!(STATE.NODES.len(), 8);
         std::assert_eq!(STATE.NODES[0].edges, vec![1,3]);
@@ -86,11 +86,11 @@ fn test_graph_plus_three_tiles() {
     initialize();
     let initial_coord = Coordinate::new(32, 32);
     let mut tile = Tile::new(Color::GRAY, Color::GRAY, Color::GRAY, Color::GRAY);
-    place_tile(&initial_coord.right(), &mut tile);
+    place_tile(&initial_coord.right(), &mut tile, 1);
     tile = Tile::new(Color::GRAY, Color::RED, Color::GRAY, Color::GRAY);
-    place_tile(&initial_coord.below(), &mut tile);
+    place_tile(&initial_coord.below(), &mut tile, 1);
     tile = Tile::new(Color::GRAY, Color::GRAY, Color::GRAY, Color::GRAY);
-    place_tile(&(initial_coord.right()).below(), &mut tile);
+    place_tile(&(initial_coord.right()).below(), &mut tile, 1);
     unsafe {
         std::assert_eq!(STATE.NODES.len(), 16);
         std::assert_eq!(STATE.NODES[0].edges, vec![1,3]);
@@ -123,7 +123,7 @@ fn test_score_1() {
     initialize();
     let initial_coord = Coordinate::new(32, 32);
     let mut tile = Tile::new(Color::GRAY, Color::GRAY, Color::GRAY, Color::GRAY);
-    place_tile(&initial_coord.right(), &mut tile);
+    place_tile(&initial_coord.right(), &mut tile, 1);
     std::assert_eq!(score(), 0);
 }
 
@@ -132,7 +132,7 @@ fn test_score_2() {
     initialize();
     let initial_coord = Coordinate::new(32, 32);
     let mut tile = Tile::new(Color::GRAY, Color::RED, Color::RED, Color::RED);
-    place_tile(&initial_coord.right(), &mut tile);
+    place_tile(&initial_coord.right(), &mut tile, 1);
     std::assert_eq!(score(), 2);
 }
 
@@ -141,9 +141,9 @@ fn test_score_3() {
     initialize();
     let initial_coord = Coordinate::new(32, 32);
     let mut tile = Tile::new(Color::GRAY, Color::RED, Color::RED, Color::GRAY);
-    place_tile(&initial_coord.right(), &mut tile);
+    place_tile(&initial_coord.right(), &mut tile, 1);
     tile = Tile::new(Color::RED, Color::GRAY, Color::RED, Color::RED);
-    place_tile(&initial_coord.right().below(), &mut tile);
+    place_tile(&initial_coord.right().below(), &mut tile, 1);
     std::assert_eq!(score(), 3);
 }
 
@@ -152,11 +152,11 @@ fn test_score_4() {
     initialize();
     let initial_coord = Coordinate::new(32, 32);
     let mut tile = Tile::new(Color::GRAY, Color::RED, Color::RED, Color::GRAY);
-    place_tile(&initial_coord.right(), &mut tile);
+    place_tile(&initial_coord.right(), &mut tile, 1);
     tile = Tile::new(Color::GRAY, Color::GRAY, Color::RED, Color::RED);
-    place_tile(&initial_coord.right().below(), &mut tile);
+    place_tile(&initial_coord.right().below(), &mut tile, 1);
     tile = Tile::new(Color::GRAY, Color::RED, Color::GRAY, Color::RED);
-    place_tile(&initial_coord.below(), &mut tile);
+    place_tile(&initial_coord.below(), &mut tile, 1);
     std::assert_eq!(score(), 10);
 }
 
@@ -165,6 +165,6 @@ fn test_score_5() {
     initialize();
     let initial_coord = Coordinate::new(32, 32);
     let mut tile = Tile::new(Color::GRAY, Color::GRAY, Color::BLUE, Color::BLUE);
-    place_tile(&initial_coord.above(), &mut tile);
+    place_tile(&initial_coord.above(), &mut tile, 1);
     std::assert_eq!(score(), 0);
 }
