@@ -14,6 +14,7 @@ import {
     coordinate,
     select_new_tile,
     add_more_tiles,
+    total_score,
     score,
     default as init
 } from './pkg/mozaa.js';
@@ -163,7 +164,7 @@ function create_info_table() {
     let table =
         `<div>
             <table>
-                <tr><th>Score:</th><td>${score()}</td>
+                <tr><th>Score:</th><td>${total_score()}</td>
                 <tr><th>Tiles Remaining:</th><td>${tiles_remaining()}</td>
             </table>
             <div class="spacer"></div>

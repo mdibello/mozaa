@@ -3,12 +3,16 @@ mod test;
 use wasm_bindgen::prelude::*;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use std::collections::HashSet;
+use std::collections::VecDeque;
 
 static mut GRID: Option<Grid> = None;
 static mut TILES: Option<Vec<Tile>> = None;
 static mut CURRENT_TILE: Option<Tile> = None;
 static mut UNIQUE_TILESET: Option<Vec<Tile>> = None;
 static mut NODES: Vec<Node> = Vec::new();
+static mut SCORES: Vec<usize> = Vec::new();
+static mut TILES_CREATED: u64 = 0;
 
 #[wasm_bindgen]
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -17,22 +21,24 @@ pub enum Color { PURPLE, BLUE, GRAY, RED }
 #[derive(Clone, Debug)]
 pub struct Node {
     pub id: usize,
-    pub edges: Vec<usize>
+    pub color: Color,
+    pub edges: Vec<usize>,
+    pub tile_id: u64,
 }
 
 impl Node {
-    fn new(id: usize) -> Node {
-        return Node { id: id, edges: Vec::new() }
+    fn new(id: usize, color: Color, tile_id: u64) -> Node {
+        return Node { id: id, color: color, edges: Vec::new(), tile_id: tile_id }
     }
     fn add_edge(&mut self, id: usize) -> () {
         self.edges.push(id);
     }
 }
 
-fn create_node() -> usize {
+fn create_node(color: Color, tile_id: u64) -> usize {
     unsafe {
         let id: usize = NODES.len();
-        NODES.push(Node::new(id));
+        NODES.push(Node::new(id, color, tile_id));
         return id;
     }
 }
@@ -40,6 +46,7 @@ fn create_node() -> usize {
 #[wasm_bindgen]
 #[derive(Clone, Copy, Debug)]
 pub struct Tile {
+    pub id: u64,
     pub left: Color,
     pub top: Color,
     pub right: Color,
@@ -53,6 +60,7 @@ pub struct Tile {
 impl Tile {
     fn new(left: Color, top: Color, right: Color, bottom: Color) -> Tile {
         let tile = Tile {
+            id: unsafe { TILES_CREATED },
             left: left,
             top: top,
             right: right,
@@ -62,6 +70,7 @@ impl Tile {
             right_id: None,
             bottom_id: None,
         };
+        unsafe { TILES_CREATED += 1; }
         return tile;
     }
     fn default() -> Tile {
@@ -98,13 +107,16 @@ impl Tile {
     fn is_dichromatic_bowtie(tile: &Tile) -> bool {
         return tile.left == tile.right && tile.top == tile.bottom && tile.left != tile.top;
     }
+    fn get_nodes(&self) -> Vec<usize> {
+        return vec![self.left_id.unwrap(), self.top_id.unwrap(), self.right_id.unwrap(), self.bottom_id.unwrap()];
+    }
 }
 
 struct Grid {
     tiles: Vec<Option<Tile>>,
     width: i32,
     subgrid: Subgrid,
-    is_empty: bool
+    count: u64
 }
 
 impl Grid {
@@ -113,6 +125,7 @@ impl Grid {
     }
     fn place(&mut self, tile: Tile, coordinate: &Coordinate) -> () {
         self.tiles[xy_to_index(coordinate) as usize] = Some(tile);
+        self.count += 1;
     }
 }
 
@@ -168,10 +181,11 @@ pub fn initialize() -> () {
                 max_dimensions: Coordinate { x: 32, y: 32 },
                 min_dimensions: Coordinate { x: 32, y: 32 }
             },
-            is_empty: true
+            count: 0
         });
 
         NODES = Vec::new();
+        TILES_CREATED = 0;
         
         place_tile(&coordinate(32, 32), &mut Tile::default());
 
@@ -196,6 +210,8 @@ pub fn initialize() -> () {
         shuffle_tiles(&mut tiles);
         CURRENT_TILE = Some(tiles.pop().unwrap());
         TILES = Some(tiles);
+
+        SCORES = vec![0];
     }
 }
 
@@ -208,8 +224,7 @@ pub fn is_valid_placement(new_tile: &Tile, coordinate: &Coordinate) -> bool {
         match &mut GRID {
             None => panic!("GRID uninitialized!"),
             Some(grid) => {
-                if grid.is_empty {
-                    grid.is_empty = false;
+                if grid.count == 0 {
                     return true;
                 }
                 match grid.at(&coordinate) {
@@ -278,22 +293,18 @@ pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile) -> () {
             match &mut GRID {
                 None => panic!("GRID uninitialized!"),
                 Some(grid) => {
-                    let left = create_node();
-                    let top = create_node();
-                    let right = create_node();
-                    let bottom = create_node();
+                    let left = create_node(tile.left, tile.id);
+                    let top = create_node(tile.top, tile.id);
+                    let right = create_node(tile.right, tile.id);
+                    let bottom = create_node(tile.bottom, tile.id);
 
                     NODES[left].add_edge(top);
-                    NODES[left].add_edge(right);
                     NODES[left].add_edge(bottom);
                     NODES[top].add_edge(left);
                     NODES[top].add_edge(right);
-                    NODES[top].add_edge(bottom);
-                    NODES[right].add_edge(left);
                     NODES[right].add_edge(top);
                     NODES[right].add_edge(bottom);
                     NODES[bottom].add_edge(left);
-                    NODES[bottom].add_edge(top);
                     NODES[bottom].add_edge(right);
 
                     tile.left_id = Some(left);
@@ -345,7 +356,7 @@ pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile) -> () {
                     let bottom_tile = grid.tiles[xy_to_index(&coordinate.below()) as usize];
                     match bottom_tile {
                         Some(t) => {
-                            match (t.top_id) {
+                            match t.top_id {
                                 Some(id) => {
                                     NODES[id].add_edge(tile.bottom_id.unwrap());
                                     NODES[tile.bottom_id.unwrap()].add_edge(id);
@@ -355,6 +366,8 @@ pub fn place_tile(coordinate: &Coordinate, tile: &mut Tile) -> () {
                         },
                         None => ()
                     }
+
+                    calculate_score(*tile);
                 }
             }
         }
@@ -548,9 +561,64 @@ pub fn add_more_tiles() -> () {
     }
 }
 
+pub fn calculate_score(tile: Tile) -> () {
+    unsafe {
+        println!("{:?}", NODES);
+        let mut visited: HashSet<usize> = HashSet::new();
+        let mut score: usize = 0;
+        for origin in tile.get_nodes() {
+            let mut pending: VecDeque<usize> = VecDeque::new();
+            let mut tiles: HashSet<u64> = HashSet::new();
+            let origin_node = &NODES[origin];
+            println!("ORIGIN: {:?}", origin_node);
+            pending.push_back(origin);
+            visited.insert(origin);
+            tiles.insert(origin_node.tile_id);
+            let mut valid = true;
+            while !pending.is_empty() {
+                let node_id = pending.pop_front().unwrap();
+                let adjacent_ids = &NODES[node_id].edges;
+                if adjacent_ids.len() != 3 {
+                    valid = false;
+                    break;
+                }
+                for &id in adjacent_ids {
+                    let node = &NODES[id];
+                    println!("ADJACENT: {:?}", node);
+                    if node.color == origin_node.color {
+                        if !visited.contains(&id) {
+                            pending.push_back(id);
+                            visited.insert(id);
+                            tiles.insert(node.tile_id);
+                        }
+                    }
+                }
+            }
+            println!("VALID: {}", valid);
+            if valid {
+                score += tiles.len();
+                if tiles.len() > 3 {
+                    score += tiles.len();
+                }
+            }
+        }
+        println!("SCORE: {}", score);
+        SCORES.push(score);
+    }
+}
+
 #[wasm_bindgen]
 pub fn score() -> i32 {
-    return 0;
+    unsafe {
+        return *SCORES.last().unwrap() as i32;
+    }
+}
+
+#[wasm_bindgen]
+pub fn total_score() -> i32 {
+    unsafe {
+        return SCORES.iter().sum::<usize>() as i32;
+    }
 }
 
 fn shuffle_tiles(tiles: &mut Vec<Tile>) -> () {
